@@ -1,0 +1,81 @@
+.App {
+  text-align: center;
+}
+
+.main {
+  display: flex;
+
+  /* background-color: #e1f1f5; */
+
+  /* background-color: white; */
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+}
+
+footer {
+  align-items: center;
+  color: #acacad;
+  display: flex;
+  justify-content: center;
+}
+
+.header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  padding-right: 20px;
+  font-family: Doom;
+}
+
+.header-title {
+  color: #000;
+  font-family: Arial, sans-serif;
+  font-size: 1.4em !important;
+  font-weight: bold;
+}
+
+.videobox {
+  width: 800px !important;
+  height: 600px !important;
+}
+
+.controls {
+  background-color: #600;
+  flex: 0;
+  margin-left: 1em;
+  margin-right: 1em;
+  padding: 20px;
+  border-radius: 0.3rem;
+  box-shadow: 0 0.13rem 0.25rem #000;
+  border: 0.06rem solid #000;
+}
+
+.settingsbox {
+  /* background-color: #e6e6e6; */
+  width: 400px;
+}
+
+.flex {
+  display: flex;
+  justify-content: center;
+
+  /* background-color: #3852e7; */
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 2s linear infinite;
+}

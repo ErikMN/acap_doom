@@ -1,0 +1,147 @@
+##################### ACAP SDK armv7hf image ###################################
+ARG ARCH=armv7hf
+ARG REPO=axisecp
+
+# ACAP 4: https://hub.docker.com/r/axisecp/acap-native-sdk
+ARG VERSION=1.11
+ARG UBUNTU_VERSION=22.04
+ARG SDK=acap-native-sdk
+
+FROM ${REPO}/${SDK}:${VERSION}-${ARCH}-ubuntu${UBUNTU_VERSION}
+
+##################### General setup ############################################
+
+# Install some utils:
+RUN DEBIAN_FRONTEND=noninteractive \
+  apt-get update && apt-get install -y -f --no-install-recommends \
+  jq gnupg ripgrep python3-pip git pkgconf ninja-build cmake
+
+# Install Node.js:
+ARG NODE_MAJOR=20
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+RUN DEBIAN_FRONTEND=noninteractive \
+  apt-get update && apt-get install -y -f --no-install-recommends \
+  nodejs
+
+# Configure npm and install yarn:
+RUN npm install --global yarn
+
+# Clean APT cache and lists:
+RUN DEBIAN_FRONTEND=noninteractive \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+# ACAP SDK install path:
+ARG ACAP_SDK_INSTALL_DIR=/opt/axis/acapsdk/sysroots/armv7hf/usr
+
+# Change permissions of the "KHR" folder and its contents:
+RUN chmod -R 555 ${ACAP_SDK_INSTALL_DIR}/include/KHR
+
+# Install libs here:
+ARG INC_DIR=${ACAP_SDK_INSTALL_DIR}/include
+
+# OpenGL Mathematics (glm) for C:
+ARG CGLM_VER=v0.9.4
+ARG BUILD_DIR=/opt/build
+ARG CGLM_SRC_DIR=${BUILD_DIR}/CGLM
+RUN git clone https://github.com/recp/cglm.git --branch=${CGLM_VER} ${CGLM_SRC_DIR}
+RUN cp -r ${CGLM_SRC_DIR}/include/cglm ${INC_DIR}
+
+# Download and verify shareware Doom WAD:
+RUN curl -o /opt/app/doom1.wad https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad
+RUN expected_sha1="5b2e249b9c5133ec987b3ea77596381dc0d6bc1d" && \
+  echo "$expected_sha1 /opt/app/doom1.wad" | sha1sum -c - || \
+  (echo "Checksum verification failed. Removing file." && rm /opt/app/doom1.wad && exit 1)
+
+##################### Setup and build libwebsockets for armv7hf ################
+
+# libwebsockets paths and version:
+ARG LWS_VER=v4.3-stable
+ARG BUILD_DIR=/opt/build
+ARG LWS_SRC_DIR=${BUILD_DIR}/LWS
+ARG LWS_BUILD_DIR=${LWS_SRC_DIR}/build
+
+# Install the libwebsockets built release to the ACAP SDK in order to use pkgconf etc.
+ARG LWS_INSTALL_DIR=/opt/axis/acapsdk/sysroots/armv7hf/usr
+
+# Clone libwebsockets to LWS_SRC_DIR:
+RUN git clone https://github.com/warmcat/libwebsockets.git --branch=${LWS_VER} ${LWS_SRC_DIR}
+
+# Create build directory:
+RUN mkdir -p ${LWS_BUILD_DIR}
+
+# Configure and build libwebsockets:
+WORKDIR ${LWS_BUILD_DIR}
+RUN . /opt/axis/acapsdk/environment-setup* && \
+  cmake \
+  -D CMAKE_INSTALL_PREFIX=${ACAP_SDK_INSTALL_DIR} \
+  -D CMAKE_CXX_COMPILER=${CXX%-g++*}-g++ \
+  -D CMAKE_CXX_FLAGS="${CXX#*-g++}" \
+  -D CMAKE_C_COMPILER=${CC%-gcc*}-gcc \
+  -D CMAKE_C_FLAGS="${CC#*-gcc}" \
+  -D CMAKE_BUILD_TYPE=RELEASE \
+  -D CPU_BASELINE=NEON,VFPV3 \
+  -D ENABLE_NEON=ON \
+  -D ENABLE_VFPV3=ON \
+  -D LWS_WITH_SSL=OFF \
+  -D LWS_WITH_CRYPTO=OFF \
+  -D LWS_WITH_ZLIB=OFF \
+  -D LWS_WITH_STATIC=OFF \
+  -D LWS_WITH_SHARED=ON \
+  -D LWS_WITHOUT_TESTAPPS=ON \
+  -D LWS_HAVE_LIBCAP=OFF \
+  ${LWS_SRC_DIR} && \
+  make -j$(nproc) install
+
+# Copy libwebsockets libs to /opt/app in order to easily get them to host for packaging in ACAP:
+RUN mkdir -p /opt/app/libwebsockets
+RUN cp -P ${ACAP_SDK_INSTALL_DIR}/lib/libwebsockets.so* /opt/app/libwebsockets
+
+##################### Setup and build PipeWire for armv7hf #####################
+
+# Install build dependencies for cross compiling OpenCV:
+RUN DEBIAN_FRONTEND=noninteractive \
+  apt-get update && apt-get install -y -f --no-install-recommends \
+  python3-pip pkgconf ninja-build && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install meson
+RUN find / -name "*ncurses*" -exec rm -rf {} \; || true
+
+# PW paths and version:
+ARG PW_VER=1.0.5
+ARG BUILD_DIR=/opt/build
+ARG PW_BUILD_PATH=${BUILD_DIR}/PW
+ARG PW_BUILD_DIR=${PW_BUILD_PATH}/build
+ARG PW_INSTALL_DIR=${PW_BUILD_PATH}/install
+ENV PKG_CONFIG_ALLOW_CROSS=1
+
+# Clone PW to PW_BUILD_PATH:
+WORKDIR ${PW_BUILD_PATH}
+RUN git clone https://gitlab.freedesktop.org/pipewire/pipewire.git --branch=${PW_VER} ${PW_BUILD_PATH}
+
+# Meson crossfile source: https://github.com/mesonbuild/meson/blob/master/cross/ubuntu-armhf.txt
+# Copy PW meson-crossfiles to PW_BUILD_PATH in image:
+WORKDIR ${PW_BUILD_PATH}
+COPY ./pipewire/meson-crossfile-*.txt ./
+
+# Build PW using meson-crossfile:
+RUN . /opt/axis/acapsdk/environment-setup* && \
+  meson setup --cross-file meson-crossfile-${ARCH}.txt ${PW_BUILD_DIR} \
+  -Ddbus=disabled \
+  -Dsession-managers=[] \
+  -Dudev=disabled \
+  -Dalsa=disabled \
+  -Dv4l2=disabled \
+  -Davb=disabled \
+  -Dprefix=${ACAP_SDK_INSTALL_DIR} && \
+  meson compile -C ${PW_BUILD_DIR} && meson install -C ${PW_BUILD_DIR}
+
+# Copy PW libs to /opt/app:
+RUN mkdir -p /opt/app/libpipewire/pipewire-0.3
+RUN cp -r ${ACAP_SDK_INSTALL_DIR}/lib/libpipewire-* /opt/app/libpipewire/
+RUN cp -r ${ACAP_SDK_INSTALL_DIR}/lib/pipewire-0.3/* /opt/app/libpipewire/pipewire-0.3
+
+################################################################################

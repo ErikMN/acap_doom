@@ -1,0 +1,23 @@
+{
+    "schemaVersion": "1.3",
+    "acapPackageConf": {
+        "setup": {
+            "appName": "acap_doom",
+            "friendlyName": "ACAP DOOM",
+            "vendor": "-",
+            "version": "1.0.0",
+            "embeddedSdkVersion": "2.0",
+            "user": {
+                "username": "sdk",
+                "group": "sdk"
+            },
+            "runMode": "respawn"
+        },
+        "installation": {
+            "postInstallScript": "postinstall.sh"
+        },
+        "configuration": {
+            "settingPage": "index.html"
+        }
+    }
+}

@@ -1,0 +1,66 @@
+{
+  "name": "acap_doom",
+  "version": "1.0.0",
+  "type": "module",
+  "sitename": "ACAP DOOM",
+  "homepage": "./",
+  "private": true,
+  "author": "-",
+  "dependencies": {
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "@fontsource/roboto": "^5.0.14",
+    "@mui/icons-material": "^5.16.6",
+    "@mui/material": "^5.16.6",
+    "@mui/styles": "^5.16.6",
+    "luxon": "^3.5.0",
+    "media-stream-library": "^13.1.1",
+    "media-stream-player": "^13.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-select": "^5.8.0",
+    "react-toastify": "^10.0.5",
+    "styled-components": "^6.1.12"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "license-checker": "^25.0.1",
+    "prettier": "^3.3.3",
+    "stylelint": "^16.8.1",
+    "stylelint-config-standard-scss": "^13.1.0",
+    "vite": "^5.3.5",
+    "vite-plugin-compression2": "^1.1.3"
+  },
+  "scripts": {
+    "start": "./start.sh",
+    "preview": "./version.sh && vite preview",
+    "build": "./version.sh && vite build",
+    "license": "license-checker --json",
+    "lint": "npx eslint . --ext .js,.jsx --cache",
+    "format": "npx prettier --write .",
+    "stylelint": "npx stylelint './src/**/*.css'",
+    "checkupdate": "npx npm-check-updates --target minor",
+    "update": "npx npm-check-updates --target minor -u",
+    "clean": "rm -rf build",
+    "distclean": "rm -rf yarn.lock node_modules build"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

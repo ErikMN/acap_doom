@@ -1,0 +1,89 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "DEBUG REMOTE TARGET",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/acap_doom",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": true,
+      "MIMode": "gdb",
+      "miDebuggerServerAddress": "${input:device_ip}:1234",
+      "miDebuggerPath": "/usr/bin/gdb-multiarch",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "DEBUG SNDSERV REMOTE",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/sndserv/sndserver",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "DOOMWADDIR",
+          "value": "${workspaceFolder}"
+        }
+      ],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerServerAddress": "${input:device_ip}:1234",
+      "miDebuggerPath": "/usr/bin/gdb-multiarch",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "DEBUG SNDSERV",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/sndserv/sndserver",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "DOOMWADDIR",
+          "value": "${workspaceFolder}"
+        }
+      ],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+  ],
+  "inputs": [
+    {
+      "id": "device_ip",
+      "description": "Select ip of device",
+      "type": "pickString",
+      "options": [
+        "192.168.0.90",
+        "192.168.0.230"
+      ],
+      "default": "192.168.0.230"
+    },
+  ]
+}
