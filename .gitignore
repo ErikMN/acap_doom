@@ -1,0 +1,24 @@
+# Files to ignore:
+acap_doom
+release
+.history
+*.exe
+*.o
+*.pyc
+*.eap
+*.old
+*.raw
+*.wad
+*log_messages.txt
+npm-debug.log
+package.conf.orig
+html
+*LICENSE.txt
+sndserver
+tmp*
+slask
+libwebsockets
+credentials.json
+.eap-install.cfg
+.yarnrc
+.cache

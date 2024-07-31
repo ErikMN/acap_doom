@@ -1,0 +1,19 @@
+{
+  "terminal.integrated.profiles.linux": {
+    "zsh": {
+      "path": "zsh",
+      "args": [
+        "-c",
+        "source ${workspaceFolder}/setuptarget.sh; zsh"
+      ]
+    },
+    "bash": {
+      "path": "bash",
+      "args": [
+        "-l",
+        "-c",
+        "source ${workspaceFolder}/setuptarget.sh; bash"
+      ]
+    }
+  }
+}

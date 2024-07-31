@@ -1,0 +1,13 @@
+[binaries]
+c = 'aarch64-linux-gnu-gcc'
+cpp = 'aarch64-linux-gnu-g++'
+ar = 'aarch64-linux-gnu-ar'
+strip = 'aarch64-linux-gnu-strip'
+pkgconfig = 'pkgconf'
+ld = 'aarch64-linux-gnu-ld'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'arm'
+cpu = 'aarch64' # Not sure if correct.
+endian = 'little'
