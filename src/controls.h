@@ -20,6 +20,7 @@ extern int key_press_dot;
 extern int key_press_comma;
 extern int key_press_space;
 extern int key_press_tab;
+extern int key_press_backspace;
 
 extern int key_press_0;
 extern int key_press_1;

@@ -215,8 +215,7 @@ void M_ClearMenus(void);
 //
 // DOOM MENU
 //
-// enum { newgame = 0, options, loadgame, savegame, readthis, quitdoom, main_end } main_e;
-enum { newgame = 0, options, loadgame, savegame, readthis, main_end } main_e;
+enum { newgame = 0, options, loadgame, savegame, readthis, quitdoom, main_end } main_e;
 
 menuitem_t MainMenu[] = {
   { 1, "M_NGAME", M_NewGame, 'n' },
@@ -225,7 +224,7 @@ menuitem_t MainMenu[] = {
   { 1, "M_SAVEG", M_SaveGame, 's' },
   // Another hickup with Special edition.
   { 1, "M_RDTHIS", M_ReadThis, 'r' },
-  // { 1, "M_QUITG", M_QuitDOOM, 'q' },
+  { 1, "M_QUITG", M_QuitDOOM, 'q' },
 };
 
 menu_t MainDef = { main_end, NULL, MainMenu, M_DrawMainMenu, 97, 64, 0 };

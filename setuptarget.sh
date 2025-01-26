@@ -25,6 +25,9 @@ SCRIPT_DIR=$(echo "$SCRIPT_DIR" | sed 's|/web$||')
 # https://stackoverflow.com/questions/1274057/how-do-i-make-git-forget-about-a-file-that-was-tracked-but-is-now-in-gitignore
 git update-index --skip-worktree "$SCRIPT_DIR"/.vscode/*
 
+# Set the git hooks path:
+git config core.hooksPath "$SCRIPT_DIR/hooks"
+
 rm -f "${SCRIPT_DIR}/.eap-install.cfg"
 
 if ! command -v jq >/dev/null 2>&1; then

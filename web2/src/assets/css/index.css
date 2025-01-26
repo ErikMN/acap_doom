@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  height: 100%;
+  background-image: url('../img/doom_bg.jpg');
+  background-color: rgb(102 10 29);
+  background-attachment: fixed;
+  background-position: right center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  cursor: url('../cursors/normal_cursor.cur'), default;
+}
+
+/* http://www.rw-designer.com/cursor-set/doom-1 */
+
+a:hover,
+button:hover,
+textarea:hover {
+  cursor: url('../cursors/link_select.cur'), pointer;
+}
+
+.element-resize-horizontal:hover {
+  cursor: url('../cursors/h_resize.cur'), ew-resize;
+}
+
+.element-resize-vertical:hover {
+  cursor: url('../cursors/v_resize.cur'), ns-resize;
+}
+
+body.busy {
+  cursor: url('../cursors/busy.ani'), progress;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+@font-face {
+  font-family: Doom;
+  src:
+    local('DooM'),
+    url('../fonts/DooM.ttf') format('truetype');
+}

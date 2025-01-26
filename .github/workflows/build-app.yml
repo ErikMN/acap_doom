@@ -1,0 +1,146 @@
+name: Build ACAP DOOM
+
+on:
+  # 1) Automatic trigger on tag push
+  push:
+    tags:
+      - "*"
+  # 2) Manual trigger from the Actions tab
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Existing tag to build"
+        required: true
+
+jobs:
+  build-acap:
+    name: Build ACAP DOOM Binary
+    runs-on: ubuntu-latest
+
+    steps:
+      # Determine which tag to build:
+      # - If triggered by push (tags), use github.ref_name
+      # - If triggered manually (workflow_dispatch), use inputs.tag_name
+      - name: Set TAG variable
+        id: set_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "TAG=${{ inputs.tag_name }}" >> $GITHUB_ENV
+          else
+            # 'refs/tags/x.y.z' -> 'x.y.z'
+            SHORT_REF="${GITHUB_REF#refs/tags/}"
+            echo "TAG=$SHORT_REF" >> $GITHUB_ENV
+          fi
+
+      # Check out the repository at the correct tag:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.TAG }}
+
+      # OPTIONAL: Validate the TAG format (e.g., x.y.z):
+      - name: Validate tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          if [[ ! "${{ env.TAG }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must be in the format x.y.z"
+            exit 1
+          fi
+
+      # Set up Docker Buildx:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Build the Docker image (aarch64):
+      - name: Build Docker Image (aarch64)
+        run: |
+          docker buildx build \
+            --load \
+            --progress=plain \
+            -f docker/Dockerfile \
+            ./docker -t acap_doom_aarch64
+
+      # Run ACAP build inside Docker (aarch64):
+      - name: Build .eap inside Docker (aarch64)
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            acap_doom_aarch64 \
+            ./docker/build_aarch64.sh 1 acap_doom "ACAP DOOM" y
+
+      # Build the Docker image (armv7hf):
+      - name: Build Docker Image (armv7hf)
+        run: |
+          docker buildx build \
+            --load \
+            --progress=plain \
+            -f docker/Dockerfile.armv7hf \
+            ./docker -t acap_doom_armv7hf
+
+      # Run ACAP build inside Docker (armv7hf):
+      - name: Build .eap inside Docker (armv7hf)
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            acap_doom_armv7hf \
+            ./docker/build_armv7hf.sh 1 acap_doom "ACAP DOOM" y
+
+      # Create (or update) GitHub Release for the tag in env.TAG:
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.TAG }}
+          release_name: Build for ${{ env.TAG }}
+          draft: false
+          prerelease: false
+
+      # Find the aarch64 EAP file:
+      - name: Find EAP file (aarch64)
+        id: find_eap_aarch64
+        run: |
+          EAP_FILE=$(ls -1 *aarch64.eap 2>/dev/null | head -n1)
+          if [ -z "$EAP_FILE" ]; then
+            echo "No aarch64 .eap file found!"
+            exit 1
+          fi
+          echo "Found EAP file for aarch64: $EAP_FILE"
+          echo "EAP_FILE=$EAP_FILE" >> $GITHUB_OUTPUT
+
+      # Upload the aarch64 EAP file:
+      - name: Upload EAP file to Release (aarch64)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.find_eap_aarch64.outputs.EAP_FILE }}
+          asset_name: ${{ steps.find_eap_aarch64.outputs.EAP_FILE }}
+          asset_content_type: application/octet-stream
+
+      # Find the armv7hf EAP file:
+      - name: Find EAP file (armv7hf)
+        id: find_eap_armv7hf
+        run: |
+          EAP_FILE=$(ls -1 *armv7hf.eap 2>/dev/null | head -n1)
+          if [ -z "$EAP_FILE" ]; then
+            echo "No armv7hf .eap file found!"
+            exit 1
+          fi
+          echo "Found EAP file for armv7hf: $EAP_FILE"
+          echo "EAP_FILE=$EAP_FILE" >> $GITHUB_OUTPUT
+
+      # Upload the armv7hf EAP file:
+      - name: Upload EAP file to Release (armv7hf)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.find_eap_armv7hf.outputs.EAP_FILE }}
+          asset_name: ${{ steps.find_eap_armv7hf.outputs.EAP_FILE }}
+          asset_content_type: application/octet-stream

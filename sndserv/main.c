@@ -493,7 +493,7 @@ start_stream(struct data *data)
                             PW_KEY_MEDIA_CATEGORY,
                             "Playback",
                             PW_KEY_TARGET_OBJECT,
-                            "AudioDevice0Input0",
+                            "AudioDevice0Output0",
                             PW_KEY_NODE_LATENCY,
                             BUFFER_LATENCY,
                             NULL);

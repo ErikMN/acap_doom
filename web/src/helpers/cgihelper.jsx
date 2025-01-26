@@ -3,7 +3,6 @@ const DEFAULT_OPTIONS = {
   credentials: 'same-origin',
   headers: {
     'Content-Type': 'application/json'
-    // 'Content-Type': 'application/x-www-form-urlencoded',
   }
 };
 

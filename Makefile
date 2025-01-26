@@ -198,6 +198,7 @@ endif
 dockersetup: checkdocker
 	@docker build -f docker/Dockerfile.armv7hf ./docker -t $(DOCKER_X32_IMG)
 	@docker build -f docker/Dockerfile.aarch64 ./docker -t $(DOCKER_X64_IMG)
+# @docker build --progress=plain --no-cache -f docker/Dockerfile.aarch64 ./docker -t $(DOCKER_X64_IMG)
 
 # Build ACAP for ARMv7 using Docker:
 .PHONY: armv7hf

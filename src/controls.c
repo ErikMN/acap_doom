@@ -13,6 +13,7 @@ int key_press_dot = 0;
 int key_press_comma = 0;
 int key_press_space = 0;
 int key_press_tab = 0;
+int key_press_backspace = 0;
 
 int key_press_0 = 0;
 int key_press_1 = 0;
@@ -83,6 +84,8 @@ set_key_state(const char *key_str)
     { "Shift_release", &key_press_shift, 0 },
     { "Tab", &key_press_tab, 1 },
     { "Tab_release", &key_press_tab, 0 },
+    { "Backspace", &key_press_backspace, 1 },
+    { "Backspace_release", &key_press_backspace, 0 },
     /* Character keys */
     { ",", &key_press_comma, 1 },
     { ",_release", &key_press_comma, 0 },
