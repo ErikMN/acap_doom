@@ -1,20 +1,21 @@
 import React, { useEffect, useState, useRef } from 'react';
-import CustomTextField from './CustomTextField.jsx';
-import { serverGet } from '../helpers/cgihelper.jsx';
-
+import { CustomTextField, CustomButton } from './CustomComponents';
+import { serverGet } from '../helpers/cgihelper';
 /* MUI */
-import Button from '@mui/material/Button';
-import ClearIcon from '@mui/icons-material/Clear';
+import { useTheme } from '@mui/material/styles';
 import ArticleIcon from '@mui/icons-material/Article';
+import ClearIcon from '@mui/icons-material/Clear';
 
 const L_CGI = '/axis-cgi/admin/systemlog.cgi?appname=acap_doom';
 
-const LogBox = () => {
+const LogBox: React.FC = () => {
   /* Local states */
-  const [serverLog, setServerLog] = useState('');
-  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [serverLog, setServerLog] = useState<string>('');
+  const [loadingLogs, setLoadingLogs] = useState<boolean>(false);
 
-  const textFieldRef = useRef(null);
+  const textFieldRef = useRef<HTMLDivElement | null>(null);
+
+  const theme = useTheme();
 
   /* Scroll to the bottom when serverLog changes */
   const scrollToBottom = () => {
@@ -57,7 +58,7 @@ const LogBox = () => {
     <div>
       {/* App log box */}
       <CustomTextField
-        label={'Logs'}
+        label="Logs"
         value={serverLog}
         textFieldRef={textFieldRef}
       />
@@ -67,10 +68,10 @@ const LogBox = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-evenly'
+          justifyContent: 'space-between'
         }}
       >
-        <Button
+        <CustomButton
           onClick={getLogs}
           variant="contained"
           type="button"
@@ -86,8 +87,8 @@ const LogBox = () => {
         >
           <ArticleIcon sx={{ paddingRight: '5px' }} />
           Get logs
-        </Button>
-        <Button
+        </CustomButton>
+        <CustomButton
           onClick={clearLogs}
           variant="contained"
           color="warning"
@@ -104,7 +105,7 @@ const LogBox = () => {
         >
           <ClearIcon sx={{ paddingRight: '5px' }} />
           Clear logs
-        </Button>
+        </CustomButton>
       </div>
     </div>
   );

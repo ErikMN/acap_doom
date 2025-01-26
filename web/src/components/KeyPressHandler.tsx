@@ -1,10 +1,17 @@
 import { useEffect, useCallback } from 'react';
-import PropTypes from 'prop-types';
 
-function KeyPressHandler({ onPressCallback, onReleaseCallback }) {
+interface KeyPressHandlerProps {
+  onPressCallback: (key: string) => void;
+  onReleaseCallback: (key: string) => void;
+}
+
+function KeyPressHandler({
+  onPressCallback,
+  onReleaseCallback
+}: KeyPressHandlerProps) {
   /* Handle key press */
   const handleKeyDown = useCallback(
-    (event) => {
+    (event: KeyboardEvent) => {
       /* Ignore repeating keydown events (held down key) */
       if (event.repeat) {
         return;
@@ -13,13 +20,15 @@ function KeyPressHandler({ onPressCallback, onReleaseCallback }) {
     },
     [onPressCallback]
   );
+
   /* Handle key release */
   const handleKeyUp = useCallback(
-    (event) => {
+    (event: KeyboardEvent) => {
       onReleaseCallback(`${event.key}_release`);
     },
     [onReleaseCallback]
   );
+
   /* Listen to key events */
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -30,11 +39,8 @@ function KeyPressHandler({ onPressCallback, onReleaseCallback }) {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [handleKeyDown, handleKeyUp]);
-}
 
-KeyPressHandler.propTypes = {
-  onPressCallback: PropTypes.func.isRequired,
-  onReleaseCallback: PropTypes.func.isRequired
-};
+  return null;
+}
 
 export default KeyPressHandler;

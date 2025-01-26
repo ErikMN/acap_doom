@@ -160,7 +160,7 @@ Also ensure that the application matches the device architecture.
 
 ### Q: Why am I not hearing any sounds?
 
-**A:** Ensure that audio is enabled in both **`Video -> Stream -> Audio`** and **`Audio -> Device Settings -> Enable input`**.
+**A:** You need to plug speakers or headphones to the audio output jack of you device.
 
 ### Q: Why is there no music?
 

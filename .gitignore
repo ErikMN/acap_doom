@@ -22,3 +22,4 @@ credentials.json
 .eap-install.cfg
 .yarnrc
 .cache
+.bash_history

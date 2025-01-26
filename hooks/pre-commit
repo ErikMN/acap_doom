@@ -1,0 +1,13 @@
+#!/bin/sh
+
+echo "*** Format web"
+yarn --cwd web format
+
+echo "*** Lint web"
+yarn --cwd web lint
+
+echo "*** Build web"
+yarn --cwd web build
+
+echo
+echo "*** Git hook done"

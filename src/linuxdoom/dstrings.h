@@ -49,7 +49,7 @@
 // Not done in french?
 
 // QuitDOOM messages
-#define NUM_QUITMESSAGES 22
+#define NUM_QUITMESSAGES 16
 
 extern char *endmsg[];
 

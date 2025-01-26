@@ -140,7 +140,8 @@ ws_setup(void)
     syslog(LOG_ERR, "Failed to set up WebSocket. Terminating.");
     return -1;
   }
-
+  /* Detach the thread on termination */
+  pthread_detach(ws_thread);
   return 0;
 }
 

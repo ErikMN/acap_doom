@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
 import react from '@vitejs/plugin-react';
+import viteTsconfigPaths from 'vite-tsconfig-paths';
+import svgr from 'vite-plugin-svgr';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -8,9 +10,24 @@ export default defineConfig({
   build: {
     outDir: 'build',
     assetsDir: 'static',
-    sourcemap: false
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: (id: string): string | undefined => {
+          if (id.indexOf('node_modules') !== -1) {
+            // MUI in own chunk:
+            if (id.indexOf('@mui') !== -1) {
+              return 'vendor_mui';
+            }
+            // Rest of vendors in node_modules:
+            return 'vendor';
+          }
+        }
+      }
+    }
   },
   server: {
+    host: '0.0.0.0',
     port: 3000,
     open: true,
     proxy: {
@@ -24,8 +41,13 @@ export default defineConfig({
       }
     }
   },
+  assetsInclude: ['**/*.oga'],
   plugins: [
     react(),
+    viteTsconfigPaths(),
+    svgr({
+      include: '**/*.svg?react'
+    }),
     // https://www.npmjs.com/package/vite-plugin-compression2
     compression({ deleteOriginalAssets: true, exclude: [/\.html$/] })
   ]

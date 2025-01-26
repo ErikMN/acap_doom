@@ -11,8 +11,11 @@ FMT_WHITE=$(printf '\033[37m')
 FMT_BOLD=$(printf '\033[1m')
 FMT_RESET=$(printf '\033[0m')
 
-# BASH: Print warning if script is not sourced.
-[[ "${BASH_SOURCE[0]}" != "${0}" ]] || echo "${FMT_RED}This script needs to be sourced, not run directly.${FMT_RESET}"
+# BASH: Ensure the script is sourced rather than executed.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "${FMT_RED}This script needs to be sourced, not run directly.${FMT_RESET}"
+  return 1 2>/dev/null || exit 1
+fi
 
 # NOTE: need to source this script from the project dir.
 # Determine the script directory:
@@ -24,6 +27,9 @@ SCRIPT_DIR=$(echo "$SCRIPT_DIR" | sed 's|/web$||')
 # HACK: Don't polute git status with modified .vscode stuff (disable: --no-skip-worktree)
 # https://stackoverflow.com/questions/1274057/how-do-i-make-git-forget-about-a-file-that-was-tracked-but-is-now-in-gitignore
 git update-index --skip-worktree "$SCRIPT_DIR"/.vscode/*
+
+# Set the git hooks path:
+git config core.hooksPath "$SCRIPT_DIR/hooks"
 
 rm -f "${SCRIPT_DIR}/.eap-install.cfg"
 
@@ -60,5 +66,5 @@ export TARGET_PWD
 package_conf_file="$SCRIPT_DIR/package.conf"
 packagename=$(grep '^PACKAGENAME=' "$package_conf_file" | awk -F'=' '{print $2}' | tr -d '"')
 
-echo "${FMT_BOLD}${FMT_GREEN}*** ACAP project $packagename for ""${FMT_WHITE}""$TARGET_IP${FMT_GREEN}" initialized"${FMT_RESET}"
+echo "${FMT_BOLD}${FMT_GREEN}*** ACAP project $packagename for ${FMT_WHITE}$TARGET_IP${FMT_GREEN} initialized${FMT_RESET}"
 echo "*** Run 'make help' to get started"

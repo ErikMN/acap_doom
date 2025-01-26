@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { getCgiResponse } from '../helpers/cgihelper.jsx';
+import { getCgiResponse } from '../helpers/cgihelper';
 
 const PARAMS_BASE_PATH = '/axis-cgi/param.cgi?action=list&group=';
 
-const centerStyle = {
-  display: 'flex',
-  justifyContent: 'center',
-  paddingTop: '5px',
-  color: 'white'
-};
+interface GetParamProps {
+  param: string;
+}
 
-const GetParam = ({ param }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+const GetParam: React.FC<GetParamProps> = ({ param }) => {
+  const [data, setData] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,11 +28,7 @@ const GetParam = ({ param }) => {
     fetchData();
   }, [param]);
 
-  return <>{!loading && <h4 style={centerStyle}>{data}</h4>}</>;
-};
-
-GetParam.propTypes = {
-  param: PropTypes.string.isRequired
+  return <>{!loading && <>{data}</>}</>;
 };
 
 export default GetParam;

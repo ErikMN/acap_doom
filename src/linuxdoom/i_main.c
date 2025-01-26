@@ -265,6 +265,7 @@ render_triangle(void)
   start = now;
 #endif
 
+  /* Using a fixed 4:3 aspect ratio (resulting in letterboxed rendering in a 16:9 overlay). */
   static const float aspect_ratio = 4.0f / 3.0f;
 
   /* clang-format off */
@@ -495,6 +496,8 @@ real_main(int argc, char **argv)
     syslog(LOG_ERR, "Failed to create Doom thread");
     goto exit;
   }
+  /* Detach Doom thread */
+  pthread_detach(doom_thread);
 
   /* Start render loop */
   g_timeout_add(RENDER_T, (GSourceFunc)render_trigger_redraw, NULL);
@@ -523,7 +526,7 @@ exit:
     }
     rgba_buffer = MAP_FAILED;
   }
-  glDeleteTextures(2, &buffer_texture);
+  glDeleteTextures(1, &buffer_texture);
   g_main_loop_unref(main_loop);
 
   syslog(LOG_INFO, "Quitting real main");

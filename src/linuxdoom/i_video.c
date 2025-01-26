@@ -122,6 +122,7 @@ I_GetEvent(void)
     { &key_press_shift, KEY_RSHIFT, 0 },
     { &key_press_tab, KEY_TAB, 1 },
     { &key_press_space, KEY_SPACE, 0 },
+    { &key_press_backspace, KEY_BACKSPACE, 1 },
     /* Character keys */
     { &key_press_comma, ',', 0 },
     { &key_press_dot, '.', 0 },
