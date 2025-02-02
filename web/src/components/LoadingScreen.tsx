@@ -32,11 +32,11 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ Component }) => {
     const fetchSystemReady = async () => {
       setAppLoading(true);
       /* Check protocol for HTTPS */
-      const protocol = window.location.protocol;
-      if (protocol === 'https:') {
-        setMessage('PLEASE USE HTTP AND NOT HTTPS');
-        return;
-      }
+      // const protocol = window.location.protocol;
+      // if (protocol === 'https:') {
+      //   setMessage('PLEASE USE HTTP AND NOT HTTPS');
+      //   return;
+      // }
       const payload = {
         apiVersion: '1.0',
         method: 'systemready',

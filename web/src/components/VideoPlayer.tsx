@@ -3,10 +3,6 @@ import { Player, Format } from 'media-stream-player';
 import { useGlobalContext } from './GlobalContext';
 import { Dimensions } from './commonInterfaces';
 
-interface VideoPlayerProps {
-  showBoundingBoxes?: boolean;
-}
-
 interface VapixConfig {
   compression: string;
   resolution: string;
@@ -38,9 +34,7 @@ const setDefaultParams = (): void => {
   }
 };
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({
-  showBoundingBoxes = true
-}) => {
+const VideoPlayer: React.FC = () => {
   /* Local state */
   const [authorized, setAuthorized] = useState<boolean>(false);
   const [retryCount, setRetryCount] = useState<number>(0);
@@ -196,7 +190,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <Player
         hostname={window.location.host}
         initialFormat={
-          appSettings.wsDefault ? Format.RTP_H264 : Format.MP4_H264
+          appSettings.wsDefault ? Format.RTP_JPEG : Format.MP4_H264
         }
         autoPlay
         autoRetry

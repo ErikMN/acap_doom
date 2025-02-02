@@ -60,6 +60,16 @@ else
 	$(error Please source setuptarget.sh first)
 endif
 
+# Deploy keys to target:
+.PHONY: deploycert
+deploycert:
+ifdef TARGET_IP
+	@./generate_self_signed_cert.sh
+	@sshpass -p $(TARGET_PWD) scp server.key server.crt $(TARGET_USR)@$(TARGET_IP):$(TARGET_DIR)/
+else
+	$(error Please source setuptarget.sh first)
+endif
+
 #==============================================================================#
 # Miscellaneous targets
 

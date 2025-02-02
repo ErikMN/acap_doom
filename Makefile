@@ -51,12 +51,15 @@ DOCKER_CMD := docker run --rm -i -t \
 
 # This is needed to link the built lib with the app, otherwise elflibcheck.sh will fail
 LDFLAGS = -L./libwebsockets -Wl,--no-as-needed,-rpath,'$$ORIGIN/libwebsockets'
+LDFLAGS += -L./openssl -Wl,--no-as-needed,-rpath,'$$ORIGIN/openssl'
 
 PKGS += glib-2.0 gio-2.0 axoverlay glesv2 jansson libwebsockets
 ifdef PKGS
 	LDLIBS += $(shell pkg-config --libs $(PKGS))
 	CFLAGS += $(shell pkg-config --cflags $(PKGS))
 endif
+
+LDLIBS += -lssl -lcrypto
 
 # C source files:
 SRCS_C = $(wildcard src/*.c) $(wildcard src/linuxdoom/*.c)
@@ -203,14 +206,16 @@ dockersetup: checkdocker
 # Build ACAP for ARMv7 using Docker:
 .PHONY: armv7hf
 armv7hf: checkdocker
-	@./scripts/copylib.sh $(DOCKER_X32_IMG) libwebsockets doom1.wad
+	@./generate_self_signed_cert.sh
+	@./scripts/copylib.sh $(DOCKER_X32_IMG) libwebsockets openssl doom1.wad
 	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/build_snd.sh $(FINAL)
 	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/build_armv7hf.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $(FINAL)
 
 # Build ACAP for ARM64 using Docker:
 .PHONY: aarch64
 aarch64: checkdocker
-	@./scripts/copylib.sh $(DOCKER_X64_IMG) libwebsockets doom1.wad
+	@./generate_self_signed_cert.sh
+	@./scripts/copylib.sh $(DOCKER_X64_IMG) libwebsockets openssl doom1.wad
 	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/build_snd.sh $(FINAL)
 	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/build_aarch64.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $(FINAL)
 
@@ -221,6 +226,18 @@ ifeq ($(APPTYPE), armv7hf)
 	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/build.sh $(FINAL)
 else ifeq ($(APPTYPE), aarch64)
 	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/build.sh $(FINAL)
+else
+	@echo "Error: Unsupported APPTYPE"
+	@exit 1
+endif
+
+# Copy libs to host:
+.PHONY:
+copylib: checkdocker
+ifeq ($(APPTYPE), armv7hf)
+	@./scripts/copylib.sh $(DOCKER_X32_IMG) libwebsockets openssl doom1.wad
+else ifeq ($(APPTYPE), aarch64)
+	@./scripts/copylib.sh $(DOCKER_X64_IMG) libwebsockets openssl doom1.wad
 else
 	@echo "Error: Unsupported APPTYPE"
 	@exit 1
@@ -260,7 +277,7 @@ clean:
 # Clean up everything:
 .PHONY: distclean
 distclean: clean
-	$(RM) -r html .*var_log_messages* *.old *.orig tmp* libwebsockets release* sndserver .yarn .yarnrc
+	$(RM) -r html .*var_log_messages* *.old *.orig tmp* libwebsockets openssl release* sndserver .yarn .yarnrc *.pem *.crt *.csr *.key *.srl
 
 # WARNING: Cleans up everything not tracked by git:
 .PHONY: superclean

@@ -146,7 +146,6 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 const App: React.FC = () => {
   /* Local state */
-  const [showBoundingBoxes, setShowBoundingBoxes] = useState<boolean>(true);
   const [aboutModalOpen, setAboutModalOpen] = useState<boolean>(false);
 
   /* Local storage state */
@@ -284,11 +283,14 @@ const App: React.FC = () => {
   const socketRef = useRef<WebSocket | null>(null);
 
   /* Websocket endpoint */
-  const wsPort = 9000;
+  const wsHttpPort = 9000;
+  const wsHttpsPort = 9001;
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsPort = wsProtocol === 'wss' ? wsHttpsPort : wsHttpPort;
   const wsAddress =
     import.meta.env.MODE === 'development'
-      ? `ws://${import.meta.env.VITE_TARGET_IP}:${wsPort}`
-      : `ws://${window.location.hostname}:${wsPort}`;
+      ? `${wsProtocol}://${import.meta.env.VITE_TARGET_IP}:${wsPort}`
+      : `${wsProtocol}://${window.location.hostname}:${wsPort}`;
 
   /* Websocket setup */
   useEffect(() => {
@@ -511,6 +513,55 @@ const App: React.FC = () => {
   };
 
   /****************************************************************************/
+  /* Joystick */
+
+  /* Track whether WebHID is available, and store the joystick device once connected. */
+  const [joystickAvailable, setJoystickAvailable] = useState<boolean>(false);
+  const [joystickDevice, setJoystickDevice] = useState<HIDDevice | null>(null);
+
+  /* Check for WebHID support on mount */
+  useEffect(() => {
+    if ('hid' in navigator) {
+      setJoystickAvailable(true);
+    }
+  }, []);
+
+  /* Prompt the user to connect the AXIS joystick */
+  const connectJoystick = async () => {
+    playSound(messageSoundUrl);
+    try {
+      const devices = await navigator.hid.requestDevice({
+        /* AXIS T8311 joystick */
+        filters: [{ vendorId: 0x07c0, productId: 0x1131 }]
+      });
+      if (devices.length > 0) {
+        const device = devices[0];
+        await device.open();
+        setJoystickDevice(device);
+        handleOpenAlert(`Joystick connected: ${device.productName}`, 'success');
+      }
+    } catch (err) {
+      console.error('Failed to connect joystick:', err);
+      handleOpenAlert('Failed to connect joystick.', 'error');
+    }
+  };
+
+  /* Disconnect the joystick if currently connected */
+  const disconnectJoystick = async () => {
+    playSound(unlockSoundUrl);
+    if (joystickDevice) {
+      try {
+        await joystickDevice.close();
+        setJoystickDevice(null);
+        handleOpenAlert('Joystick disconnected', 'success');
+      } catch (err) {
+        console.error('Failed to disconnect joystick:', err);
+        handleOpenAlert('Failed to disconnect joystick.', 'error');
+      }
+    }
+  };
+
+  /****************************************************************************/
 
   const contentMain = () => {
     return (
@@ -666,6 +717,66 @@ const App: React.FC = () => {
                         }}
                       />
                     )}
+                  </CustomStyledIconButton>
+                </div>
+              </Tooltip>
+            )}
+
+            {/* Joystick Connect Button (only if WebHID is supported) */}
+            {joystickAvailable && (
+              <Tooltip title="Connect Joystick" arrow>
+                <div>
+                  <CustomStyledIconButton
+                    color="inherit"
+                    aria-label="connect joystick"
+                    onClick={connectJoystick}
+                    edge="end"
+                    sx={{ marginRight: '0px' }}
+                  >
+                    <VideogameAssetOutlinedIcon
+                      sx={{
+                        width: '20px',
+                        height: '20px',
+                        color: 'text.secondary'
+                      }}
+                    />
+                  </CustomStyledIconButton>
+                </div>
+              </Tooltip>
+            )}
+
+            {/* Joystick Disconnect Button (only if a joystick is connected) */}
+            {joystickDevice && (
+              <Tooltip title="Disconnect Joystick" arrow>
+                <div>
+                  <CustomStyledIconButton
+                    color="inherit"
+                    aria-label="disconnect joystick"
+                    onClick={disconnectJoystick}
+                    edge="end"
+                    sx={{ marginRight: '0px', position: 'relative' }}
+                  >
+                    <VideogameAssetOutlinedIcon
+                      sx={{
+                        width: '20px',
+                        height: '20px',
+                        color: 'text.secondary',
+                        transform: 'scaleX(-1)'
+                      }}
+                    />
+                    {/* Cross line overlay */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        width: '24px',
+                        height: '2px',
+                        backgroundColor: 'error.main',
+                        transform: 'translate(-50%, -50%) rotate(45deg)',
+                        zIndex: 1
+                      }}
+                    />
                   </CustomStyledIconButton>
                 </div>
               </Tooltip>
@@ -895,7 +1006,7 @@ const App: React.FC = () => {
         <Main open={drawerOpen} isMobile={isMobile}>
           <DrawerHeader />
           {/* Video Player */}
-          <VideoPlayer showBoundingBoxes={showBoundingBoxes} />
+          <VideoPlayer />
         </Main>
 
         {/* Alert Snackbar */}
@@ -932,6 +1043,7 @@ const App: React.FC = () => {
         <KeyPressHandler
           onPressCallback={handleKeyPress}
           onReleaseCallback={handleKeyRelease}
+          joystickDevice={joystickDevice}
         />
       </>
     );

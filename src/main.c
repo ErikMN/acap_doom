@@ -93,9 +93,11 @@ ws_run(void *arg)
 {
   (void)arg;
   struct lws_context *context = NULL;
-  struct lws_context_creation_info info;
+  struct lws_context_creation_info info_http;
+  struct lws_context_creation_info info_https;
+  struct lws_vhost *vhost_http = NULL;
+  struct lws_vhost *vhost_https = NULL;
 
-  const struct lws_http_mount mount = { .mountpoint = "/ws" };
   static struct lws_protocols protocols[] = { {
                                                   .name = "ws",
                                                   .callback = ws_callback,
@@ -103,26 +105,57 @@ ws_run(void *arg)
                                                   .id = 0,
                                               },
                                               LWS_PROTOCOL_LIST_TERM };
-  memset(&info, 0, sizeof(info));
-  info.port = WS_PORT;
-  info.protocols = protocols;
-  info.mounts = &mount;
-  info.gid = -1;
-  info.uid = -1;
+  memset(&info_http, 0, sizeof(info_http));
+  memset(&info_https, 0, sizeof(info_https));
 
-  /* Set log level to error and warning only */
-  lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
+  /* Common settings for both vhosts */
+  info_http.protocols = protocols;
+  info_http.mounts = NULL;
+  info_http.gid = -1;
+  info_http.uid = -1;
 
-  context = lws_create_context(&info);
+  /* Copy HTTP config for HTTPS */
+  info_https = info_http;
 
+  /* HTTP Vhost (ws://) */
+  info_http.port = WS_PORT;
+  info_http.options = 0; /* No SSL */
+  PRINT_GREEN("HTTP WebSocket server started at ws://<server>:%d", WS_PORT);
+
+  /* HTTPS Vhost (wss://) if certs exist */
+  if (access("/usr/local/packages/acap_doom/server.crt", F_OK) == 0 &&
+      access("/usr/local/packages/acap_doom/server.key", F_OK) == 0) {
+    info_https.port = WS_PORT + 1;
+    info_https.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+    info_https.ssl_cert_filepath = "/usr/local/packages/acap_doom/server.crt";
+    info_https.ssl_private_key_filepath = "/usr/local/packages/acap_doom/server.key";
+    PRINT_GREEN("HTTPS WebSocket server started at wss://<server>:%d", WS_PORT + 1);
+  } else {
+    PRINT_YELLOW("No SSL certificate found, only HTTP (ws://) is available.");
+  }
+
+  /* Create WebSocket context */
+  context = lws_create_context(&info_http);
   if (!context) {
     syslog(LOG_ERR, "Failed to create libwebsocket context");
     return NULL;
   }
-  PRINT_GREEN("WebSocket server started on port %d\n", info.port);
+
+  /* Create vhosts */
+  vhost_http = lws_create_vhost(context, &info_http);
+  if (!vhost_http) {
+    syslog(LOG_ERR, "Failed to create HTTP vhost");
+  }
+
+  if (info_https.port > 0) {
+    vhost_https = lws_create_vhost(context, &info_https);
+    if (!vhost_https) {
+      syslog(LOG_ERR, "Failed to create HTTPS vhost");
+    }
+  }
 
   while (1) {
-    /* Non-blocking timeout: 0ms */
+    /* Non-blocking timeout: 5ms */
     lws_service(context, 5);
   }
   lws_context_destroy(context);

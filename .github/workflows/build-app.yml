@@ -100,17 +100,11 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             acap_doom_aarch64 \
-            bash -c 'if [ ! -f doom1.wad ]; then
-                      echo "Downloading doom1.wad...";
-                      curl -fsSL -o doom1.wad https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad && \
-                      expected_sha1="5b2e249b9c5133ec987b3ea77596381dc0d6bc1d" && \
-                      echo "$expected_sha1  doom1.wad" | sha1sum -c - || \
-                      (echo "Checksum verification failed. Exiting." && exit 1);
-                    fi && \
-                    rm -rf /workspace/libwebsockets && \
-                    cp -a /opt/app/libwebsockets/. /workspace/libwebsockets && \
-                    ./docker/build_snd.sh 1 && \
-                    ./docker/build_aarch64.sh 1 acap_doom "ACAP DOOM" y'
+            bash -c 'cp /opt/app/doom1.wad /workspace/ && \
+                     cp -a /opt/app/openssl/. /workspace/openssl && \
+                     cp -a /opt/app/libwebsockets/. /workspace/libwebsockets && \
+                     ./docker/build_snd.sh 1 && \
+                     ./docker/build_aarch64.sh 1 acap_doom "ACAP DOOM" y'
 
       # Find the aarch64 EAP file:
       - name: Find EAP file (aarch64)
@@ -185,17 +179,11 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             acap_doom_armv7hf \
-            bash -c 'if [ ! -f doom1.wad ]; then
-                      echo "Downloading doom1.wad...";
-                      curl -fsSL -o doom1.wad https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad && \
-                      expected_sha1="5b2e249b9c5133ec987b3ea77596381dc0d6bc1d" && \
-                      echo "$expected_sha1  doom1.wad" | sha1sum -c - || \
-                      (echo "Checksum verification failed. Exiting." && exit 1);
-                    fi && \
-                    rm -rf /workspace/libwebsockets && \
-                    cp -a /opt/app/libwebsockets/. /workspace/libwebsockets && \
-                    ./docker/build_snd.sh 1 && \
-                    ./docker/build_armv7hf.sh 1 acap_doom "ACAP DOOM" y'
+            bash -c 'cp /opt/app/doom1.wad /workspace/ && \
+                     cp -a /opt/app/openssl/. /workspace/openssl && \
+                     cp -a /opt/app/libwebsockets/. /workspace/libwebsockets && \
+                     ./docker/build_snd.sh 1 && \
+                     ./docker/build_armv7hf.sh 1 acap_doom "ACAP DOOM" y'
 
       # Find the armv7hf EAP file:
       - name: Find EAP file (armv7hf)

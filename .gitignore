@@ -18,8 +18,14 @@ sndserver
 tmp*
 slask
 libwebsockets
+openssl
 credentials.json
 .eap-install.cfg
 .yarnrc
 .cache
 .bash_history
+*.pem
+*.key
+*.crt
+*.csr
+*.srl

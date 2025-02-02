@@ -54,6 +54,25 @@ RUN expected_sha1="5b2e249b9c5133ec987b3ea77596381dc0d6bc1d" && \
   echo "$expected_sha1 /opt/app/doom1.wad" | sha1sum -c - || \
   (echo "Checksum verification failed. Removing file." && rm /opt/app/doom1.wad && exit 1)
 
+##################### Setup and build OpenSSL for aarch64 ######################
+
+# Remove already existing version of libcrypto:
+RUN rm -f ${ACAP_SDK_INSTALL_DIR}/lib/libcrypto.so.3
+
+WORKDIR /opt/build/openssl
+RUN git clone --depth=1 --branch=openssl-3.0 https://github.com/openssl/openssl.git .
+RUN . /opt/axis/acapsdk/environment-setup* && \
+  ./Configure linux-aarch64 shared \
+  no-tests no-srp no-idea no-ocsp \
+  --prefix="${ACAP_SDK_INSTALL_DIR}" \
+  --cross-compile-prefix="" && \
+  make -j$(nproc) && \
+  make install_sw
+
+# Copy openssl libs to /opt/app:
+RUN mkdir -p /opt/app/openssl
+RUN cp -P ${ACAP_SDK_INSTALL_DIR}/lib/libssl.so* ${ACAP_SDK_INSTALL_DIR}/lib/libcrypto.so* /opt/app/openssl
+
 ##################### Setup and build libwebsockets for aarch64 ################
 
 # libwebsockets paths and version:
@@ -79,8 +98,8 @@ RUN . /opt/axis/acapsdk/environment-setup* && \
   -D CMAKE_C_FLAGS="${CC#*-gcc}" \
   -D CMAKE_BUILD_TYPE=RELEASE \
   -D CPU_BASELINE=NEON,VFPV3 \
-  -D LWS_WITH_SSL=OFF \
-  -D LWS_WITH_CRYPTO=OFF \
+  -D LWS_WITH_SSL=ON \
+  -D LWS_WITH_CRYPTO=ON \
   -D LWS_WITH_ZLIB=OFF \
   -D LWS_WITH_STATIC=OFF \
   -D LWS_WITH_SHARED=ON \
