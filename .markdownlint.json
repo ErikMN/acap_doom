@@ -2,7 +2,12 @@
   "MD033": {
     "allowed_elements": [
       "br",
-      "img"
+      "strong",
+      "img",
+      "div",
+      "table",
+      "tr",
+      "td"
     ]
   },
   "MD013": {

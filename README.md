@@ -1,20 +1,42 @@
-<img src="images/Doom-Logo-1993.png" width="400" alt="doom-logo"/>
+<div align="center">
+  <img src="images/Doom-Logo-1993.png" width="300" alt="doom-logo"/>
+</div>
 
 # ACAP DOOM
 
-id Software's classic FPS **Doom** for Axis network cameras. \
-\
-Running on **ARTPEC-7** and **ARTPEC-8** devices. \
-Refer to your device manual to determine your platform. \
-\
-⚠️ Firmware should be **11.5** or later.
+<table border="2" cellpadding="10" cellspacing="0" width="100%">
+  <tr>
+    <td align="center">
+      <strong>⚠️ IMPORTANT ⚠️</strong><br/>
+      This application is <strong>not affiliated</strong> with id Software LLC or Axis Communications AB.<br/>
+      <strong>Please read and respect the LICENSE</strong> to ensure compliance.<br/>
+      <strong>UNOFFICIAL APP</strong><br/>
+      Requires "Allow unsigned apps" to be enabled on the device.
+    </td>
+  </tr>
+</table>
 
-> **⚠️ Important:** This application is **not affiliated** with Id Software or Axis Communications. \
-> **Please read and respect the LICENSE** to ensure compliance.
+<table border="2" cellpadding="10" cellspacing="0" width="100%">
+  <tr>
+    <td align="center">
+      <strong>⚠️ IMPORTANT ⚠️</strong><br/>
+      <strong>This application is not actively maintained.</strong><br/>
+      It may not work on all devices or firmware versions.<br/>
+      Requires AXIS OS firmware version <strong>11.5</strong> or later.
+    </td>
+  </tr>
+</table>
+
+## What is this?
+
+A port of the classic **DOOM** engine originally developed by id Software LLC, adapted for Axis network cameras.
+
+Runs on devices based on **ARTPEC-7**, **ARTPEC-8**, or newer ARTPEC SoCs. \
+Refer to your device manual to determine your platform.
 
 This application is intended to be built on a Linux or macOS system.
 
-## ✅ Build Docker images
+## Build Docker images
 
 **[Docker](https://docs.docker.com/engine/install/) and Make must be installed before proceeding.**
 
@@ -22,9 +44,9 @@ This application is intended to be built on a Linux or macOS system.
 make dockersetup
 ```
 
-This might take some time, as all the resources required for the application need to be built.
+This may take some time, as all required dependencies are built during this step.
 
-## ✅ Build the ACAP
+## Build the ACAP
 
 **⚠️ NOTE** that you will need a WAD file to play and install the ACAP. \
 Please read the [**WAD File**](#wad-file) section below.
@@ -41,14 +63,14 @@ For ARTPEC-8 devices:
 make aarch64
 ```
 
-This might also take some time, as we need to build both the application and the web UI.
+This may take some time, as both the application binary and the web UI are built.
 
-## ✅ Install the ACAP
+## Install the ACAP
 
 ⚠️ You will need to enable unsigned ACAPs on the Apps page: **Allow unsigned apps**
 
 Run ```setuptarget.sh``` to create ```credentials.json``` (requires `jq` to be installed) \
-Set your Axis device IP in ```credentials.json``` and:
+Set the device IP and credentials in ```credentials.json``` and:
 
 ```sh
 source setuptarget.sh && make install
@@ -63,7 +85,7 @@ http://<YOUR_DEVICE_IP>/camera/index.html#/apps
 and select ```Add app``` \
 Upload the correct ```.eap``` file to the device to install it.
 
-## ▶️ Run the ACAP
+## Run the ACAP
 
 Open the app website and press the **START** button.
 
@@ -72,13 +94,23 @@ Open the app website and press the **START** button.
 WAD (which, according to the Doom Bible, is an acronym for "Where's All the Data?") \
 is the file format used by Doom and all Doom-engine-based games for storing data.
 
-The `WAD`-file used in ACAP Doom is the shareware version of Doom (`doom1.wad`, version 1.9, SHA-1 `5b2e249b9c5133ec987b3ea77596381dc0d6bc1d`).
+The WAD file used in ACAP Doom is the shareware version of Doom (`doom1.wad`, version 1.9, SHA-1 `5b2e249b9c5133ec987b3ea77596381dc0d6bc1d`).
 
-`doom1.wad`, will automatically be downloaded when running ```make dockersetup``` \
-When building the ACAP it will be copied to the project directory.
+`doom1.wad` will automatically be downloaded when running ```make dockersetup``` \
+When building the ACAP, it will be copied to the project directory.
+
+<table border="2" cellpadding="10" cellspacing="0" width="100%">
+  <tr>
+    <td align="center">
+      <strong>⚠️ IMPORTANT ⚠️</strong><br/>
+      The user is responsible for ensuring they have the legal right
+      to use any WAD file deployed with this application.<br/>
+      WAD SHOULD BE PLACED IN THE SAME DIRECTORY AS THIS README FILE
+    </td>
+  </tr>
+</table>
 
 The WAD file to be included in the ACAP is specified in `package.conf` under ```OTHERFILES```. \
-**🚨 WAD SHOULD BE PLACED IN THE SAME DIRECTORY AS THIS README FILE 🚨**
 
 More about `doom1.wad` here: <https://doomwiki.org/wiki/DOOM1.WAD>
 
@@ -103,10 +135,10 @@ make help
 To just build the application binary for current arch:
 
 ```sh
-// Will build with debug symbols:
+# Will build with debug symbols:
 FINAL=n make build
 
-// Deploy debug binary to target:
+# Deploy debug binary to target:
 FINAL=n make deploy
 ```
 
@@ -115,7 +147,7 @@ Build and deploy the web code (requires Node.js and Yarn to be installed):
 ```sh
 make web
 
-// Deploy the ACAP web to target:
+# Deploy the ACAP web to target:
 make deployweb
 ```
 
@@ -125,7 +157,7 @@ Trace logs on current sourced target device (requires Python with paramiko and s
 make log
 ```
 
-## ❔ FAQ
+## FAQ
 
 ### Q: What is "ACAP"?
 
@@ -147,11 +179,11 @@ More info [here](https://www.axis.com/developer-community/open-source/acap).
 
 ### Q: Why does it not work on my device?
 
-**A:** Unfortunately, it has not been tested on all devices yet.
+**A:** Only tested on a limited set of ARTPEC-7 and ARTPEC-8 devices.
 
 ### Q: Which browsers are supported?
 
-**A:** The application is tested on the latest versions of Chrome and Firefox.
+**A:** Tested on latest stable versions of Chrome and Firefox. Other browsers are unverified.
 
 ### Q: Why does it not install?
 
@@ -160,28 +192,36 @@ Also ensure that the application matches the device architecture.
 
 ### Q: Why am I not hearing any sounds?
 
-**A:** You need to plug speakers or headphones to the audio output jack of you device.
+**A:** You need to plug speakers or headphones to the audio output jack of your device.
 
 ### Q: Why is there no music?
 
 **A:** Music support has not been implemented yet.
 
-### Q: Does it only work on devices with an Artpec chip?
+### Q: Does it only work on devices with an ARTPEC chip?
 
-**A:** Yes, it currently only works on devices with an Artpec-7 chip or later.
+**A:** Yes, it currently only works on devices based on ARTPEC-7 or newer ARTPEC SoCs.
 
 ### Q: What is the purpose of this?
 
-**A:** This project is intended to test what is possible on a surveillance camera with an open SDK for apps.
+**A:** This project is primarily a technical experiment demonstrating what is possible with the ACAP SDK.
 
-## 🖼️ Screenshots
+## Screenshots
 
 <img src="images/screenshot1.png" width="800" alt="screenshot1"/>
 <img src="images/screenshot2.png" width="800" alt="screenshot2"/>
 
-## ⭐ Credits
+## Credits
 
-**All assets, libraries, and tools are the properties of their respective owners.**
+<table border="2" cellpadding="10" cellspacing="0" width="100%">
+  <tr>
+    <td align="center">
+      <strong>⚠️ IMPORTANT ⚠️</strong><br/>
+      <strong>All assets, libraries, and tools are the properties of their respective owners.</strong><br/>
+      DOOM is a registered trademark of id Software LLC.<br/>
+    </td>
+  </tr>
+</table>
 
 - id Software DOOM: <https://github.com/id-Software/DOOM>
 - Doom wallpaper: <https://www.wallpaperflare.com/doom-wallpaper-doom-2016-video-games-doom-game-crowd-wallpaper-pbidr>
