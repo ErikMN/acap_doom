@@ -118,7 +118,7 @@ animdef_t animdefs[] = { { false, "NUKAGE3", "NUKAGE1", 8 },
                          { true, "WFALL4", "WFALL1", 8 },
                          { true, "DBRAIN4", "DBRAIN1", 8 },
 
-                         { -1, "", "", 0 } };
+                         { -1 } };
 
 anim_t anims[MAXANIMS];
 anim_t *lastanim;
@@ -138,7 +138,7 @@ P_InitPicAnims(void)
 
   //	Init animation
   lastanim = anims;
-  for (i = 0; animdefs[i].istexture != false; i++) {
+  for (i = 0; animdefs[i].istexture != -1; i++) {
     if (animdefs[i].istexture) {
       // different episode ?
       if (R_CheckTextureNumForName(animdefs[i].startname) == -1)
@@ -1078,7 +1078,7 @@ EV_DoDonut(line_t *line)
     rtn = 1;
     s2 = getNextSector(s1->lines[0], s1);
     for (i = 0; i < s2->linecount; i++) {
-      if (!(s2->lines[i]->flags & ML_TWOSIDED) || (s2->lines[i]->backsector == s1))
+      if ((!s2->lines[i]->flags & ML_TWOSIDED) || (s2->lines[i]->backsector == s1))
         continue;
       s3 = s2->lines[i]->backsector;
 
@@ -1131,14 +1131,14 @@ P_SpawnSpecials(void)
 {
   sector_t *sector;
   int i;
-  // int		episode;
+  int episode;
 
-  // episode = 1;
+  episode = 1;
   if (W_CheckNumForName("texture2") >= 0)
-    // episode = 2;
+    episode = 2;
 
-    // See if -TIMER needs to be used.
-    levelTimer = false;
+  // See if -TIMER needs to be used.
+  levelTimer = false;
 
   i = M_CheckParm("-avg");
   if (i && deathmatch) {
