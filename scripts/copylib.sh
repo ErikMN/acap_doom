@@ -54,16 +54,12 @@ for LIB_NAME in "${LIB_NAMES[@]}"; do
   fi
   # Extract the file or directory name from the LIB_NAME path:
   LIB_NAME_BASENAME=$(basename "$LIB_NAME")
-  # Check if the specified file or directory already exists in the parent directory:
-  if [ ! -e "$LIB_NAME_BASENAME" ]; then
-    # Attempt to copy the specified file or directory from the temporary container to the parent directory:
-    if docker cp "$CONTAINER_ID:$LIB_NAME" .; then
-      echo "${FMT_BOLD}${FMT_GREEN}Successfully copied '$LIB_NAME' to $(pwd) from $IMAGE_NAME${FMT_RESET}"
-    else
-      echo "${FMT_RED}Error: Failed to copy $LIB_NAME${FMT_RESET}"
-      # Continue with the next file or directory
-    fi
+  # Replace any previous architecture's packaging artifact.
+  rm -rf "$LIB_NAME_BASENAME"
+  if docker cp "$CONTAINER_ID:$LIB_NAME" .; then
+    echo "${FMT_BOLD}${FMT_GREEN}Successfully copied '$LIB_NAME' to $PWD from $IMAGE_NAME${FMT_RESET}"
   else
-    echo "${FMT_BOLD}${FMT_YELLOW}The '$LIB_NAME' file or directory already exists in the parent directory.${FMT_RESET}"
+    echo "${FMT_RED}Error: Failed to copy $LIB_NAME${FMT_RESET}"
+    # Continue with the next file or directory
   fi
 done

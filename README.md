@@ -22,7 +22,7 @@
       <strong>⚠️ IMPORTANT ⚠️</strong><br/>
       <strong>This application is not actively maintained.</strong><br/>
       It may not work on all devices or firmware versions.<br/>
-      Requires AXIS OS firmware version <strong>11.5</strong> or later.
+      Requires AXIS OS firmware version <strong>11.11.220</strong> or later, and is validated up to AXIS OS <strong>13</strong>.
     </td>
   </tr>
 </table>
@@ -46,9 +46,9 @@ make dockersetup
 
 This may take some time, as all required dependencies are built during this step.
 
-## Build the ACAP
+## Build the ACAP package
 
-**⚠️ NOTE** that you will need a WAD file to play and install the ACAP. \
+**⚠️ NOTE** that you will need a WAD file to play and install the ACAP application. \
 Please read the [**WAD File**](#wad-file) section below.
 
 For ARTPEC-7 devices:
@@ -65,9 +65,9 @@ make aarch64
 
 This may take some time, as both the application binary and the web UI are built.
 
-## Install the ACAP
+## Install the ACAP application
 
-⚠️ You will need to enable unsigned ACAPs on the Apps page: **Allow unsigned apps**
+⚠️ You will need to enable unsigned ACAP packages on the Apps page: **Allow unsigned apps**
 
 Run ```setuptarget.sh``` to create ```credentials.json``` (requires `jq` to be installed) \
 Set the device IP and credentials in ```credentials.json``` and:
@@ -85,7 +85,7 @@ http://<YOUR_DEVICE_IP>/camera/index.html#/apps
 and select ```Add app``` \
 Upload the correct ```.eap``` file to the device to install it.
 
-## Run the ACAP
+## Run the ACAP application
 
 Open the app website and press the **START** button.
 
@@ -94,10 +94,10 @@ Open the app website and press the **START** button.
 WAD (which, according to the Doom Bible, is an acronym for "Where's All the Data?") \
 is the file format used by Doom and all Doom-engine-based games for storing data.
 
-The WAD file used in ACAP Doom is the shareware version of Doom (`doom1.wad`, version 1.9, SHA-1 `5b2e249b9c5133ec987b3ea77596381dc0d6bc1d`).
+The WAD file used in ACAP Doom is the shareware version of Doom (`doom1.wad`, version 1.9, SHA-256 `1d7d43be501e67d927e415e0b8f3e29c3bf33075e859721816f652a526cac771`).
 
 `doom1.wad` will automatically be downloaded when running ```make dockersetup``` \
-When building the ACAP, it will be copied to the project directory.
+When building the ACAP package, it will be copied to the project directory.
 
 <table border="2" cellpadding="10" cellspacing="0" width="100%">
   <tr>
@@ -110,7 +110,7 @@ When building the ACAP, it will be copied to the project directory.
   </tr>
 </table>
 
-The WAD file to be included in the ACAP is specified in `package.conf` under ```OTHERFILES```. \
+The ACAP package is assembled from the project metadata in [`manifest.json`](manifest.json) and the `acap-build` command in the Docker packaging script, which attaches `doom1.wad`, [`dropin_service.service`](dropin_service.service), `libwebsockets`, and `sndserver` to the final app bundle. \
 
 More about `doom1.wad` here: <https://doomwiki.org/wiki/DOOM1.WAD>
 
@@ -120,6 +120,12 @@ Place your WAD file in the following directory on the device:
 
 ```sh
 /usr/local/packages/acap_doom
+```
+
+or, on AXIS OS 13.1 and newer:
+
+```sh
+/opt/apps/acap_doom
 ```
 
 **Note:** Not all WAD files have been tested.
@@ -172,7 +178,7 @@ More info [here](https://www.axis.com/developer-community/open-source/acap).
 
 **A:** There are a few steps you can take to improve the responsiveness of your game input:
 
-1. **Try turning off other running ACAPs.**
+1. **Try turning off other running ACAP applications.**
 2. **Reload the video stream or the application UI.**
 3. **Lower the stream resolution.**
 4. **Ensure you are on the same network as your device for optimal performance.**
@@ -187,7 +193,7 @@ More info [here](https://www.axis.com/developer-community/open-source/acap).
 
 ### Q: Why does it not install?
 
-**A:** You will need to enable unsigned ACAPs on the Apps page: **`Allow unsigned apps`**
+**A:** You will need either [sign the ACAP package](https://www.axis.com/support/acap-signing) or enable unsigned ACAP packages *(no longer an option with AXIS OS 13 unless using a developer mode device)* on the Apps page: **`Allow unsigned apps`**
 Also ensure that the application matches the device architecture.
 
 ### Q: Why am I not hearing any sounds?

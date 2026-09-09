@@ -18,19 +18,27 @@ PROGS = acap_doom
 ACAP_NAME = "ACAP DOOM"
 LDLIBS = -lm
 
-DOCKER_X32_IMG := acap_doom_armv7hf
-DOCKER_X64_IMG := acap_doom_aarch64
-APPTYPE := $(shell grep "^APPTYPE=" package.conf | cut -d "=" -f 2 | sed 's/"//g')
+DOCKER_TAG := acap_doom
+ARCHS = aarch64 armv7hf
+APPTYPE ?= aarch64
 DOCKER := $(shell command -v docker 2> /dev/null)
 NODE := $(shell command -v node 2> /dev/null)
 YARN := $(shell command -v yarn 2> /dev/null)
 ECHO := echo -e
 BUILD_WEB = 1
 
+# Make sure APPTYPE is not set to something we don't support here
+ifneq ($(strip $(filter $(APPTYPE),$(ARCHS))),$(APPTYPE))
+$(error Unsupported APPTYPE '$(APPTYPE)'. Valid values: $(ARCHS))
+endif
+
 # Helper targers:
 include helpers.mak
 
+# Older AXIS OS have /usr/local/packages, where AXIS OS 13.1 switched to
+# /opt/apps
 TARGET_DIR = /usr/local/packages/$(PROGS)/
+#TARGET_DIR = /opt/apps/$(PROGS)/
 
 d := $(CURDIR)
 $(shell touch $(d)/.yarnrc)
@@ -121,7 +129,7 @@ all: $(PROGS)
 .PHONY: help
 help:
 	@echo "Available targets:"
-	@echo "  dockersetup    : Create the Docker images $(DOCKER_X32_IMG) and $(DOCKER_X64_IMG)"
+	@echo "  dockersetup    : Create the Docker images ($(addprefix $(DOCKER_TAG)_,$(ARCHS)))"
 	@echo "  dockerlist     : List all Docker images"
 	@echo "  dockerrun      : Log in to the Docker image for current arch"
 	@echo "  armv7hf        : Build for 32-bit ARM in Docker"
@@ -194,61 +202,35 @@ ifndef DOCKER
 endif
 
 # Create Docker image(s) to build in:
+.PHONY: %.dockersetup
+%.dockersetup: checkdocker
+	@docker build --build-arg ARCH=$(*F) -t $(DOCKER_TAG)_$(*F) ./docker
+# @docker build --progress=plain --no-cache --build-arg ARCH=$(*F) -t $(DOCKER_TAG)_$(*F) ./docker
+
 .PHONY: dockersetup
-dockersetup: checkdocker
-	@docker build -f docker/Dockerfile.armv7hf ./docker -t $(DOCKER_X32_IMG)
-	@docker build -f docker/Dockerfile.aarch64 ./docker -t $(DOCKER_X64_IMG)
-# @docker build --progress=plain --no-cache -f docker/Dockerfile.aarch64 ./docker -t $(DOCKER_X64_IMG)
+dockersetup: $(addsuffix .dockersetup,$(ARCHS))
 
-# Build ACAP for ARMv7 using Docker:
-.PHONY: armv7hf
-armv7hf: checkdocker
-	@./scripts/copylib.sh $(DOCKER_X32_IMG) libwebsockets doom1.wad
-	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/build_snd.sh $(FINAL)
-	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/build_armv7hf.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $(FINAL)
-
-# Build ACAP for ARM64 using Docker:
-.PHONY: aarch64
-aarch64: checkdocker
-	@./scripts/copylib.sh $(DOCKER_X64_IMG) libwebsockets doom1.wad
-	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/build_snd.sh $(FINAL)
-	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/build_aarch64.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $(FINAL)
+# Build ACAP for selected target architecture using Docker:
+.PHONY: $(ARCHS)
+$(ARCHS): checkdocker
+	@./scripts/copylib.sh $(DOCKER_TAG)_$@ libwebsockets doom1.wad
+	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_snd.sh $(FINAL)
+	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_eap.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $@ $(FINAL)
 
 # Fast build (only binary file) using Docker:
 .PHONY: build
 build: checkdocker
-ifeq ($(APPTYPE), armv7hf)
-	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/build.sh $(FINAL)
-else ifeq ($(APPTYPE), aarch64)
-	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/build.sh $(FINAL)
-else
-	@echo "Error: Unsupported APPTYPE"
-	@exit 1
-endif
+	@$(DOCKER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./docker/build.sh $(FINAL)
 
 # Build the sound server:
 .PHONY: sndserv
 sndserv: checkdocker
-ifeq ($(APPTYPE), armv7hf)
-	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/build_snd.sh $(FINAL)
-else ifeq ($(APPTYPE), aarch64)
-	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/build_snd.sh $(FINAL)
-else
-	@echo "Error: Unsupported APPTYPE"
-	@exit 1
-endif
+	@$(DOCKER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./docker/build_snd.sh $(FINAL)
 
 # Install ACAP using Docker:
 .PHONY: install
 install: checkdocker $(APPTYPE)
-ifeq ($(APPTYPE), armv7hf)
-	@$(DOCKER_CMD) $(DOCKER_X32_IMG) ./docker/eap-install.sh
-else ifeq ($(APPTYPE), aarch64)
-	@$(DOCKER_CMD) $(DOCKER_X64_IMG) ./docker/eap-install.sh
-else
-	@echo "Error: Unsupported APPTYPE"
-	@exit 1
-endif
+	@$(DOCKER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./docker/eap-install.sh
 
 # Clean up build artifacts:
 .PHONY: clean

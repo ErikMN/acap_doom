@@ -19,7 +19,7 @@ fi
 
 # NOTE: need to source this script from the project dir.
 # Determine the script directory:
-SCRIPT_DIR="$(pwd)"
+SCRIPT_DIR=$PWD
 
 # HACK: trim web from end of path if sourcing from that dir:
 SCRIPT_DIR=$(echo "$SCRIPT_DIR" | sed 's|/web$||')

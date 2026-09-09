@@ -1,2 +1,2 @@
 [Service]
-Environment=DOOMWADDIR=/usr/local/packages/xxxxxx
+Environment=DOOMWADDIR=
