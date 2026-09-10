@@ -6,6 +6,9 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
 export default [
   {
+    ignores: ['node_modules', 'dist', 'build']
+  },
+  {
     files: ['*.js', '*.jsx', '*.ts', '*.tsx'],
     languageOptions: {
       parser: typescriptParser,
@@ -34,7 +37,6 @@ export default [
 
       // Prettier configuration
       'prettier/prettier': 'off'
-    },
-    ignores: ['node_modules', 'dist', 'build']
+    }
   }
 ];

@@ -201,8 +201,10 @@ export const CustomButton: React.FC<CustomButtonProps> = (props) => {
 };
 
 /** Custom TextField Props */
-export interface CustomTextFieldProps
-  extends Omit<TextFieldProps, 'value' | 'inputRef'> {
+export interface CustomTextFieldProps extends Omit<
+  TextFieldProps,
+  'value' | 'inputRef'
+> {
   value: string;
   textFieldRef: React.Ref<any>;
 }
