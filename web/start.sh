@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Save the current directory to return later:
-original_dir=$(pwd)
+original_dir=$PWD
 
 # Determine the project root directory:
-project_root_dir="$(dirname "$0")"
+project_root_dir=$(dirname "$0")
 
 # Source version.sh:
 . "${project_root_dir}/version.sh"

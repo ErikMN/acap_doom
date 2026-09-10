@@ -60,7 +60,7 @@ fi
 OUT_DIR="release_$GIT_TAG"
 
 echo
-echo "${FMT_BOLD}*** Building ACAPs for aarch64 and armv7hf${FMT_RESET}"
+echo "${FMT_BOLD}*** Building ACAP packages for aarch64 and armv7hf${FMT_RESET}"
 echo "${FMT_BLUE}*** Output directory: $OUT_DIR${FMT_RESET}"
 echo
 
