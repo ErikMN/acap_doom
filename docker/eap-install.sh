@@ -4,6 +4,7 @@ GREEN='\033[0;32m'
 NC='\033[0m'
 
 # Source the SDK:
+# shellcheck disable=SC1090
 . /opt/axis/acapsdk/environment-setup*
 
 echo
