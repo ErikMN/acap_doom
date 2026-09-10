@@ -20,7 +20,7 @@ sndserver
 tmp*
 slask
 libwebsockets
-credentials.json
+credentials*.json
 .eap-install.cfg
 .yarnrc
 .cache
