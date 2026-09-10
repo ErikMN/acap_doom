@@ -12,6 +12,8 @@ release
 *log_messages.txt
 npm-debug.log
 package.conf.orig
+package.conf
+param.conf
 html
 *LICENSE.txt
 sndserver

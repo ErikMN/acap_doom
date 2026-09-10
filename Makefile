@@ -242,7 +242,7 @@ clean:
 # Clean up everything:
 .PHONY: distclean
 distclean: clean
-	$(RM) -r html .*var_log_messages* *.old *.orig tmp* libwebsockets release* sndserver .yarn .yarnrc
+	$(RM) -r html .*var_log_messages* *.old *.orig tmp* libwebsockets release* sndserver .yarn .yarnrc package.conf param.conf
 
 # WARNING: Cleans up everything not tracked by git:
 .PHONY: superclean
