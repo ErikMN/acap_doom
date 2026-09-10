@@ -48,14 +48,9 @@ export default defineConfig({
     open: true,
     /* Proxy endpoints (use HTTP or HTTPS) */
     proxy: {
-      '/local/widget_wizard/system-stats-ws': {
+      '/local/acap_doom/control': {
         target,
         ws: true,
-        changeOrigin: true,
-        secure: false
-      },
-      '/local/widget_wizard/file-upload': {
-        target,
         changeOrigin: true,
         secure: false
       },

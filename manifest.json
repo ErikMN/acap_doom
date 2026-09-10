@@ -34,7 +34,14 @@
             "postInstallScript": "postinstall.sh"
         },
         "configuration": {
-            "settingPage": "index.html"
+            "settingPage": "index.html",
+            "reverseProxy": [
+                {
+                    "apiPath": "control",
+                    "target": "ws://127.0.0.1:9000",
+                    "access": "admin"
+                }
+            ]
         }
     }
 }

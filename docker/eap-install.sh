@@ -11,6 +11,7 @@ echo -e "${GREEN}>>> Installing using ACAPSDK $OECORE_SDK_VERSION for $OECORE_TA
 echo
 
 export axis_device_ip=$TARGET_IP
+export user=$TARGET_USR
 export password=$TARGET_PWD
 
 eap-install.sh

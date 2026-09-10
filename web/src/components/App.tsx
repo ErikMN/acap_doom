@@ -12,6 +12,7 @@ import { drawerWidth, drawerHeight, appbarHeight } from './constants';
 import { log, enableLogging } from '../helpers/logger';
 import { useGlobalContext } from './GlobalContext';
 import { jsonRequest } from '../helpers/cgihelper';
+import { getBackendWebSocketUrl } from './getBackendWebSocketUrl';
 import AboutModal from './AboutModal';
 import AlertSnackbar from './AlertSnackbar';
 import VideoPlayer from './VideoPlayer';
@@ -284,11 +285,7 @@ const App: React.FC = () => {
   const socketRef = useRef<WebSocket | null>(null);
 
   /* Websocket endpoint */
-  const wsPort = 9000;
-  const wsAddress =
-    import.meta.env.MODE === 'development'
-      ? `ws://${import.meta.env.VITE_TARGET_IP}:${wsPort}`
-      : `ws://${window.location.hostname}:${wsPort}`;
+  const wsAddress = getBackendWebSocketUrl();
 
   /* Websocket setup */
   useEffect(() => {
