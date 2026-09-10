@@ -4,6 +4,22 @@ import react from '@vitejs/plugin-react';
 import viteTsconfigPaths from 'vite-tsconfig-paths';
 import svgr from 'vite-plugin-svgr';
 
+const targetProtocol = process.env.TARGET_PROTOCOL ?? 'https';
+
+if (targetProtocol !== 'http' && targetProtocol !== 'https') {
+  throw new Error('TARGET_PROTOCOL must be either http or https');
+}
+
+const websocketProtocol = targetProtocol === 'https' ? 'wss' : 'ws';
+
+const targetPort =
+  targetProtocol === 'https'
+    ? (process.env.TARGET_HTTPS_PORT ?? '443')
+    : (process.env.TARGET_HTTP_PORT ?? '80');
+
+const target = `${targetProtocol}://${process.env.TARGET_IP}:${targetPort}`;
+const websocketTarget = `${websocketProtocol}://${process.env.TARGET_IP}:${targetPort}`;
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/local/acap_doom',
@@ -28,16 +44,45 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 3000,
+    port: 8080,
     open: true,
+    /* Proxy endpoints (use HTTP or HTTPS) */
     proxy: {
+      '/local/widget_wizard/system-stats-ws': {
+        target,
+        ws: true,
+        changeOrigin: true,
+        secure: false
+      },
+      '/local/widget_wizard/file-upload': {
+        target,
+        changeOrigin: true,
+        secure: false
+      },
       '/rtsp-over-websocket': {
-        target: `ws://${process.env.TARGET_IP}`,
-        ws: true
+        target: websocketTarget,
+        ws: true,
+        secure: false
       },
       '/axis-cgi/': {
-        target: `http://${process.env.TARGET_IP}`,
-        changeOrigin: true
+        target,
+        changeOrigin: true,
+        secure: false
+      },
+      '/mjpg/': {
+        target,
+        changeOrigin: true,
+        secure: false
+      },
+      '/img/': {
+        target,
+        changeOrigin: true,
+        secure: false
+      },
+      '/config/rest/': {
+        target,
+        changeOrigin: true,
+        secure: false
       }
     }
   },
