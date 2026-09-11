@@ -12,8 +12,8 @@ project_root_dir="$(dirname "$0")"
 
 # Abort if credentials are not set:
 if [ -z "$TARGET_IP" ]; then
-  echo "Error: TARGET_IP is not set. Source setuptarget.sh first"
-  exit 1
+	echo "Error: TARGET_IP is not set. Source setuptarget.sh first"
+	exit 1
 fi
 
 # Export environment variables required by React:

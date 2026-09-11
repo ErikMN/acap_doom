@@ -110,7 +110,9 @@ When building the ACAP package, it will be copied to the project directory.
   </tr>
 </table>
 
-The ACAP package is assembled from the project metadata in [`manifest.json`](manifest.json) and the `acap-build` command in the Docker packaging script, which attaches `doom1.wad`, [`dropin_service.service`](dropin_service.service), `libwebsockets`, and `sndserver` to the final app bundle. \
+The ACAP package is assembled from the project metadata in [`manifest.json`](manifest.json) and the `acap-build`
+command in the Docker packaging script, which attaches `doom1.wad`, [`dropin_service.service`](dropin_service.service),
+`libwebsockets`, and `sndserver` to the final app bundle. \
 
 More about `doom1.wad` here: <https://doomwiki.org/wiki/DOOM1.WAD>
 
@@ -193,7 +195,9 @@ More info [here](https://www.axis.com/developer-community/open-source/acap).
 
 ### Q: Why does it not install?
 
-**A:** You will need either [sign the ACAP package](https://www.axis.com/support/acap-signing) or enable unsigned ACAP packages *(no longer an option with AXIS OS 13 unless using a developer mode device)* on the Apps page: **`Allow unsigned apps`**
+**A:** You will need either [sign the ACAP package](https://www.axis.com/support/acap-signing) or enable unsigned ACAP
+packages *(no longer an option with AXIS OS 13 unless using a developer mode device)* on the Apps page:
+**`Allow unsigned apps`**
 Also ensure that the application matches the device architecture.
 
 ### Q: Why am I not hearing any sounds?

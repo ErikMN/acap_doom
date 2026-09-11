@@ -26,6 +26,7 @@ FROM $REPO/$SDK:$SDK_VERSION-armv7hf-ubuntu$UBUNTU_VERSION AS builder-armv7hf
 ARG EXTRA_WS_ARGS='-D ENABLE_NEON=ON -D ENABLE_VFPV3=ON'
 
 ##################### ACAP SDK image ###########################################
+# hadolint ignore=DL3006
 FROM builder-$ARCH
 ARG ARCH
 ARG NODE_MAJOR
@@ -53,7 +54,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Install Node.js and Yarn:
+# hadolint ignore=DL3016
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | \
     gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
@@ -83,8 +86,7 @@ RUN cp -r include/cglm "$INC_DIR"
 # Download and verify shareware Doom WAD:
 RUN curl -fsSLo /opt/app/doom1.wad "$DOOM_WAD_URL" && \
     expected_sha256="$DOOM_WAD_SHA256" && \
-    echo "$expected_sha256  /opt/app/doom1.wad" | sha256sum -c - || \
-    (echo 'Checksum verification failed. Removing file.' && rm -f /opt/app/doom1.wad && exit 1)
+    echo "$expected_sha256  /opt/app/doom1.wad" | sha256sum -c -
 
 ##################### Setup and build libwebsockets ############################
 
@@ -102,6 +104,7 @@ RUN curl -fsSLo /tmp/libwebsockets.tar.gz "https://github.com/warmcat/libwebsock
 
 # Configure and build libwebsockets:
 WORKDIR "$LWS_BUILD_DIR"
+# hadolint ignore=SC2046
 RUN . /opt/axis/acapsdk/environment-setup* && \
     cmake \
     -D CMAKE_INSTALL_PREFIX="$ACAP_SDK_INSTALL_DIR" \
@@ -161,7 +164,7 @@ RUN . /opt/axis/acapsdk/environment-setup* && \
 
 # Copy PW libs to /opt/app:
 WORKDIR /opt/app/libpipewire/pipewire-0.3
-RUN cp -r "$ACAP_SDK_INSTALL_DIR"/lib/libpipewire-* ../
-RUN cp -r "$ACAP_SDK_INSTALL_DIR"/lib/pipewire-0.3/* ./
+RUN cp -r "$ACAP_SDK_INSTALL_DIR"/lib/libpipewire-* ../ && \
+    cp -r "$ACAP_SDK_INSTALL_DIR"/lib/pipewire-0.3/* ./
 
 ################################################################################

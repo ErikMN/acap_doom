@@ -64,6 +64,7 @@ ANSI_BG_HI_CYAN = "\033[106m"
 ANSI_BG_HI_WHITE = "\033[107m"
 
 
+# pylint: disable=missing-function-docstring,redefined-outer-name,too-many-branches
 def trace_journalctl_ssh(username, password, args):
     try:
         # Create SSH client:
@@ -75,10 +76,12 @@ def trace_journalctl_ssh(username, password, args):
                            username=username, password=password)
 
         # Check if the 'journalctl' command is available on the remote server:
-        stdin, stdout, stderr = ssh_client.exec_command('which journalctl')
+        _, stdout, stderr = ssh_client.exec_command('which journalctl')
         if stdout.channel.recv_exit_status() != 0:
             print(
-                ANSI_RED + "Error: 'journalctl' command is not available on the remote server." + ANSI_RESET)
+                ANSI_RED
+                + "Error: 'journalctl' command is not available on the remote server."
+                + ANSI_RESET)
             ssh_client.close()
             return
 
@@ -87,7 +90,7 @@ def trace_journalctl_ssh(username, password, args):
             (' -f' if '-f' not in args else '') + ' '.join(args)
 
         # Start journalctl in follow mode ("-f"):
-        stdin, stdout, stderr = ssh_client.exec_command(journalctl_cmd)
+        _, stdout, stderr = ssh_client.exec_command(journalctl_cmd)
 
         # Read and print the output with color coding:
         for line in stdout:
@@ -122,6 +125,7 @@ def trace_journalctl_ssh(username, password, args):
     except KeyboardInterrupt:
         print("\nTerminating logger script.")
         sys.exit(0)
+    # pylint: disable=broad-exception-caught
     except Exception as e:
         print(f"Error: {e}")
     finally:

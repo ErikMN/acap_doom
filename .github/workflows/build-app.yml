@@ -1,3 +1,4 @@
+---
 name: Build ACAP DOOM
 
 permissions:
@@ -46,7 +47,7 @@ jobs:
             echo "Tag must be in the format x.y.z"
             exit 1
           fi
-      #========================================================================#
+      # ====================================================================== #
 
   build-aarch64:
     name: Build ACAP DOOM aarch64 Binary
@@ -77,7 +78,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      #========================================================================#
+      # ====================================================================== #
       # Build the Docker image (aarch64):
       - name: Build Docker Image (aarch64)
         run: |
@@ -131,7 +132,7 @@ jobs:
           name: ${{ steps.find_eap_aarch64.outputs.EAP_FILE_64 }}
           path: ${{ steps.find_eap_aarch64.outputs.EAP_FILE_64 }}
 
-      #========================================================================#
+          # ================================================================== #
 
   build-armv7hf:
     name: Build ACAP DOOM armv7hf Binary
@@ -162,7 +163,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      #========================================================================#
+      # ====================================================================== #
       # Build the Docker image (armv7hf):
       - name: Build Docker Image (armv7hf)
         run: |
@@ -216,7 +217,7 @@ jobs:
           name: ${{ steps.find_eap_armv7hf.outputs.EAP_FILE_32 }}
           path: ${{ steps.find_eap_armv7hf.outputs.EAP_FILE_32 }}
 
-      #========================================================================#
+          # ================================================================== #
 
   publish:
     name: Publish ACAP DOOM Binary

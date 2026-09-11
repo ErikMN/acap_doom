@@ -8,14 +8,15 @@ FMT_RESET=$(printf '\033[0m')
 FINAL=$1
 
 # Source the SDK:
+# shellcheck disable=SC1090
 . /opt/axis/acapsdk/environment-setup*
 
 echo
 echo -e "${FMT_BLUE}>>> BUILDING FOR ARM64 using ACAPSDK $OECORE_SDK_VERSION${FMT_RESET}"
 if [ "$FINAL" = "y" ]; then
-  echo -e "${FMT_YELLOW}*** RELEASE VERSION ***${FMT_RESET}"
+	echo -e "${FMT_YELLOW}*** RELEASE VERSION ***${FMT_RESET}"
 else
-  echo -e "${FMT_YELLOW}*** DEBUG VERSION ***${FMT_RESET}"
+	echo -e "${FMT_YELLOW}*** DEBUG VERSION ***${FMT_RESET}"
 fi
 echo
 
