@@ -213,7 +213,7 @@ dockersetup: $(addsuffix .dockersetup,$(ARCHS))
 # Build ACAP for selected target architecture using Docker:
 .PHONY: $(ARCHS)
 $(ARCHS): checkdocker
-	@./scripts/copylib.sh $(DOCKER_TAG)_$@ doom1.wad
+	@./scripts/dockercopy.sh -i $(DOCKER_TAG)_$@ -f /opt/app/doom1.wad
 	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_snd.sh $(FINAL)
 	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_eap.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $@ $(FINAL)
 
