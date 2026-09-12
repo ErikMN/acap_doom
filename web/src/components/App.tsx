@@ -37,7 +37,6 @@ import Box from '@mui/material/Box';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ContrastIcon from '@mui/icons-material/Contrast';
-import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import Fab from '@mui/material/Fab';
@@ -230,26 +229,6 @@ const App: React.FC = () => {
       };
     });
     handleOpenAlert(`Debug mode: ${!appSettings.debug}`, 'success');
-  };
-
-  /* Toggle WebSocket stream default */
-  const toggleWSDefault = () => {
-    setAppSettings((prevSettings: AppSettings) => {
-      playSound(prevSettings.wsDefault ? lockSoundUrl : unlockSoundUrl);
-      const newSettings = {
-        ...prevSettings,
-        wsDefault: !prevSettings.wsDefault
-      };
-      handleOpenAlert(
-        `WebSocket stream default: ${newSettings.wsDefault}`,
-        'success'
-      );
-      return newSettings;
-    });
-    /* Wait one second then reload the page */
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
   };
 
   /* Alert handler */
@@ -642,43 +621,6 @@ const App: React.FC = () => {
                   </CustomStyledIconButton>
                 </div>
               </Tooltip>
-
-              {/* WS streaming default toggle */}
-              {appSettings.debug && (
-                <Tooltip title="Toggle WebSocket stream" arrow>
-                  <div>
-                    <CustomStyledIconButton
-                      color="inherit"
-                      aria-label="toggle ws"
-                      onClick={toggleWSDefault}
-                      sx={{ p: 0.5, position: 'relative' }}
-                    >
-                      <DisplaySettingsIcon
-                        sx={{
-                          width: '20px',
-                          height: '20px',
-                          color: 'text.secondary'
-                        }}
-                      />
-                      {/* Cross line overlay */}
-                      {!appSettings.wsDefault && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            width: '24px',
-                            height: '2px',
-                            backgroundColor: 'error.main',
-                            transform: 'translate(-50%, -50%) rotate(45deg)',
-                            zIndex: 1
-                          }}
-                        />
-                      )}
-                    </CustomStyledIconButton>
-                  </div>
-                </Tooltip>
-              )}
             </Box>
 
             {/* Title and Logo */}
