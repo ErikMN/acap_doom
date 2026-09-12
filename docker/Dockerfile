@@ -102,7 +102,7 @@ RUN curl -fsSLo /tmp/libwebsockets.tar.gz "https://github.com/warmcat/libwebsock
     tar -xzf /tmp/libwebsockets.tar.gz --strip-components=1 && \
     rm /tmp/libwebsockets.tar.gz
 
-# Configure and build libwebsockets:
+# Configure and build libwebsockets statically:
 WORKDIR "$LWS_BUILD_DIR"
 # hadolint ignore=SC2046
 RUN . /opt/axis/acapsdk/environment-setup* && \
@@ -117,17 +117,18 @@ RUN . /opt/axis/acapsdk/environment-setup* && \
     -D LWS_WITH_SSL=OFF \
     -D LWS_WITH_CRYPTO=OFF \
     -D LWS_WITH_ZLIB=OFF \
-    -D LWS_WITH_STATIC=OFF \
-    -D LWS_WITH_SHARED=ON \
+    -D LWS_WITH_STATIC=ON \
+    -D LWS_WITH_SHARED=OFF \
     -D LWS_WITHOUT_TESTAPPS=ON \
     -D LWS_HAVE_LIBCAP=OFF \
+    -D LWS_WITH_LIBCAP=OFF \
     $EXTRA_WS_ARGS \
     "$LWS_SRC_DIR" && \
     make -j$(nproc) install
 
-# Copy libwebsockets libs to /opt/app in order to easily get them to host for packaging in ACAP:
+# Copy static libwebsockets archive for linking:
 WORKDIR /opt/app/libwebsockets
-RUN cp -P "$ACAP_SDK_INSTALL_DIR"/lib/libwebsockets.so* .
+RUN cp -P "$ACAP_SDK_INSTALL_DIR"/lib/libwebsockets.a .
 
 ##################### Setup and build PipeWire #################################
 

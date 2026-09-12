@@ -57,10 +57,10 @@ DOCKER_CMD := docker run --rm -i -t \
               -v /etc/group:/etc/group:ro \
               -v $(d)/.yarnrc:$(d)/.yarnrc
 
-# This is needed to link the built lib with the app, otherwise elflibcheck.sh will fail
-LDFLAGS = -L./libwebsockets -Wl,--no-as-needed,-rpath,'$$ORIGIN/libwebsockets'
+# Static linking of libwebsockets:
+LDLIBS += /opt/app/libwebsockets/libwebsockets.a
 
-PKGS += glib-2.0 gio-2.0 axoverlay glesv2 jansson libwebsockets
+PKGS += glib-2.0 gio-2.0 axoverlay glesv2 jansson
 ifdef PKGS
 	LDLIBS += $(shell pkg-config --libs $(PKGS))
 	CFLAGS += $(shell pkg-config --cflags $(PKGS))
@@ -213,7 +213,7 @@ dockersetup: $(addsuffix .dockersetup,$(ARCHS))
 # Build ACAP for selected target architecture using Docker:
 .PHONY: $(ARCHS)
 $(ARCHS): checkdocker
-	@./scripts/copylib.sh $(DOCKER_TAG)_$@ libwebsockets doom1.wad
+	@./scripts/copylib.sh $(DOCKER_TAG)_$@ doom1.wad
 	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_snd.sh $(FINAL)
 	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_eap.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $@ $(FINAL)
 

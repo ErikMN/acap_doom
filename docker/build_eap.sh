@@ -40,4 +40,4 @@ if [ "$BUILD_WEB" = '1' ] || [ "$BUILD_WEB" = 'y' ]; then
 	# Build with web:
 	make web
 fi
-acap-build -a doom1.wad -a dropin_service.service -a libwebsockets -a sndserver .
+acap-build -a doom1.wad -a dropin_service.service -a sndserver .
