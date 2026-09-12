@@ -121,8 +121,6 @@ cp ./*_LICENSE.txt "$OUT_DIR" || {
 
 cleanup || exit 1
 
-git checkout package.conf
-
 echo
 echo "${FMT_GREEN}*** Done.${FMT_RESET}"
 SIZE=$(du -sh "$OUT_DIR" | cut -f1)

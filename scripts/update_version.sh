@@ -3,7 +3,7 @@
 # Update the version number of the ACAP
 # Version must be on format major.minor.micro
 #
-# Files updated: package.conf manifest.json web/package.json
+# Files updated: manifest.json and the web package metadata
 #
 set -e
 
@@ -49,11 +49,6 @@ cd "$parent_dir" || {
 
 echo "*** Set app version: $APP_VERSION"
 
-# Update package.conf:
-sed -i "s/APPMAJORVERSION=\"[0-9]*\"/APPMAJORVERSION=\"${APP_VERSION%%.*}\"/" package.conf
-sed -i "s/APPMINORVERSION=\"[0-9]*\"/APPMINORVERSION=\"$(echo "$APP_VERSION" | cut -d. -f2)\"/" package.conf
-sed -i "s/APPMICROVERSION=\"[0-9]*\"/APPMICROVERSION=\"$(echo "$APP_VERSION" | cut -d. -f3)\"/" package.conf
-
 # Update manifest.json:
 sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"${APP_VERSION}\"/" manifest.json
 
@@ -72,7 +67,7 @@ fi
 
 # Create and push tags:
 echo "*** Push tag $APP_VERSION"
-git add package.conf manifest.json web/package.json || {
+git add manifest.json web/package.json || {
 	echo "*** Failed to add files related to version"
 	exit 1
 }
