@@ -1,3 +1,10 @@
+/**
+ * LoadingScreen
+ *
+ * This component displays a loading screen while the application is
+ * initializing. It checks the system readiness via systemready.cgi and waits
+ * until the system and parameter context are ready before rendering the app.
+ */
 import React, { useEffect, useState } from 'react';
 import { useGlobalContext } from './GlobalContext';
 import { useParameters } from './context/ParametersContext';
@@ -19,24 +26,28 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ Component }) => {
   const [message, setMessage] = useState<string>('');
 
   /* Global context */
-  const { currentTheme, handleOpenAlert, appLoading, setAppLoading } =
-    useGlobalContext();
-  const { paramsLoading } = useParameters();
+  const { currentTheme, setAppLoading } = useGlobalContext();
+  const { paramsInitialized } = useParameters();
 
   /* Theme */
   const theme = currentTheme === 'dark' ? darkTheme : doomTheme;
 
-  /* App mount calls */
+  /* On app mount */
   useEffect(() => {
+    let retryTimer: number | null = null;
+    let cancelled = false;
+
     /* Check system state */
     const fetchSystemReady = async () => {
       setAppLoading(true);
+
       /* Check protocol for HTTPS */
-      const protocol = window.location.protocol;
-      if (protocol === 'https:') {
+      if (window.location.protocol === 'https:') {
         setMessage('PLEASE USE HTTP AND NOT HTTPS');
+        setAppLoading(false);
         return;
       }
+
       const payload = {
         apiVersion: '1.0',
         method: 'systemready',
@@ -44,28 +55,44 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ Component }) => {
           timeout: 10
         }
       };
+
       try {
         const resp = await jsonRequest(SR_CGI, payload);
+        if (cancelled) {
+          return;
+        }
+
         const systemReadyState = resp.data.systemready;
         /* If the system is not ready, wait a couple of seconds and retry */
         if (systemReadyState !== 'yes') {
-          setTimeout(() => {
-            fetchSystemReady();
-          }, 2000); /* Wait before retrying */
+          retryTimer = window.setTimeout(fetchSystemReady, 2000);
         } else {
           setSystemReady(systemReadyState);
         }
       } catch (error) {
+        if (cancelled) {
+          return;
+        }
         console.error(error);
-        handleOpenAlert('Failed to check system status', 'error');
+        setMessage('Failed to check system status');
       } finally {
-        setAppLoading(false);
+        if (!cancelled) {
+          setAppLoading(false);
+        }
       }
     };
-    fetchSystemReady();
-  }, []);
 
-  if (!appLoading && !paramsLoading && systemReady === 'yes') {
+    fetchSystemReady();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+      }
+    };
+  }, [setAppLoading]);
+
+  if (paramsInitialized && systemReady === 'yes') {
     return <Component />;
   }
 

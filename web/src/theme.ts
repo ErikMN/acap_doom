@@ -62,6 +62,25 @@ const doomTheme = createTheme({
     borderRadius: 8 // Default border-radius for components (e.g., buttons, cards)
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: (theme) => ({
+        body: {
+          scrollbarColor: `${theme.palette.grey[500]} ${theme.palette.background.default}`,
+          scrollbarWidth: 'thin'
+        },
+        '::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px'
+        },
+        '::-webkit-scrollbar-thumb': {
+          backgroundColor: theme.palette.grey[400],
+          borderRadius: '4px'
+        },
+        '::-webkit-scrollbar-track': {
+          backgroundColor: theme.palette.background.default
+        }
+      })
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -148,6 +167,25 @@ const darkTheme = createTheme({
     borderRadius: 8 // Default border-radius for components (e.g., buttons, cards)
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: (theme) => ({
+        body: {
+          scrollbarColor: `${theme.palette.grey[500]} ${theme.palette.background.default}`,
+          scrollbarWidth: 'thin'
+        },
+        '::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px'
+        },
+        '::-webkit-scrollbar-thumb': {
+          backgroundColor: theme.palette.grey[700],
+          borderRadius: '4px'
+        },
+        '::-webkit-scrollbar-track': {
+          backgroundColor: theme.palette.background.default
+        }
+      })
+    },
     MuiButton: {
       styleOverrides: {
         root: {

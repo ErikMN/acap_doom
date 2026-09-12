@@ -1,7 +1,6 @@
 /* Web app main component */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppSettings } from './commonInterfaces';
-import { useNavigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { useParameters } from './context/ParametersContext';
 import { CustomStyledIconButton, CustomButton } from './CustomComponents';
@@ -9,7 +8,7 @@ import { doomTheme, darkTheme } from '../theme';
 import { useLocalStorage, useScreenSizes } from '../helpers/hooks.jsx';
 import { playSound } from '../helpers/utils';
 import { drawerWidth, drawerHeight, appbarHeight } from './constants';
-import { log, enableLogging } from '../helpers/logger';
+import { enableLogging } from '../helpers/logger';
 import { useGlobalContext } from './GlobalContext';
 import { jsonRequest } from '../helpers/cgihelper';
 import { getBackendWebSocketUrl } from './getBackendWebSocketUrl';
@@ -30,7 +29,6 @@ import BugReportOutlinedIcon from '@mui/icons-material/BugReportOutlined';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SaveIcon from '@mui/icons-material/Save';
 import StopIcon from '@mui/icons-material/Stop';
-import VideogameAssetOutlinedIcon from '@mui/icons-material/VideogameAssetOutlined';
 
 /* MUI */
 import { styled } from '@mui/material/styles';
@@ -57,6 +55,9 @@ import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 
 /******************************************************************************/
 
+{
+  /* Main content */
+}
 const Main = styled('main', {
   shouldForwardProp: (prop) => prop !== 'open' && prop !== 'isMobile'
 })<{
@@ -66,6 +67,8 @@ const Main = styled('main', {
   flexGrow: 1,
   display: 'flex',
   flexDirection: 'column',
+  minWidth: 0,
+  minHeight: 0,
   padding: theme.spacing(isMobile ? 0 : '4px'),
   transition: theme.transitions.create('margin', {
     easing: theme.transitions.easing.sharp,
@@ -88,10 +91,15 @@ interface AppBarProps extends MuiAppBarProps {
   isMobile?: boolean;
 }
 
+{
+  /* Application header bar */
+}
 const AppBar = styled(MuiAppBar, {
   shouldForwardProp: (prop) => prop !== 'open' && prop !== 'isMobile'
 })<AppBarProps>(({ theme, open, isMobile }) => ({
   overflowX: 'auto',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'none',
   backgroundColor: theme.palette.background.paper,
   backgroundImage: 'none',
   whiteSpace: 'nowrap',
@@ -147,7 +155,6 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 const App: React.FC = () => {
   /* Local state */
-  const [showBoundingBoxes, setShowBoundingBoxes] = useState<boolean>(true);
   const [aboutModalOpen, setAboutModalOpen] = useState<boolean>(false);
 
   /* Local storage state */
@@ -168,7 +175,7 @@ const App: React.FC = () => {
   } = useGlobalContext();
 
   /* Refs */
-  const drawerRef = useRef<HTMLDivElement>(null);
+  const drawerScrollRef = useRef<HTMLDivElement>(null);
 
   /* Global parameter list */
   const { parameters } = useParameters();
@@ -181,9 +188,6 @@ const App: React.FC = () => {
   /* Screen size */
   const { isMobile } = useScreenSizes();
 
-  /* Navigation */
-  const navigate = useNavigate();
-
   enableLogging(true);
 
   const handleDrawerClose = useCallback(() => {
@@ -193,8 +197,8 @@ const App: React.FC = () => {
   const toggleDrawerOpen = useCallback(() => {
     setDrawerOpen(!drawerOpen);
     /* Scroll drawer to top if closed in mobile mode */
-    if (drawerOpen && drawerRef.current) {
-      drawerRef.current.scrollTo({ top: 0 });
+    if (drawerOpen && drawerScrollRef.current) {
+      drawerScrollRef.current.scrollTo({ top: 0 });
     }
   }, [drawerOpen, setDrawerOpen]);
 
@@ -206,7 +210,7 @@ const App: React.FC = () => {
       `Use theme: ${newTheme === 'light' ? 'Doom' : 'Dark'}`,
       'success'
     );
-  }, [currentTheme, setCurrentTheme]);
+  }, [currentTheme, setCurrentTheme, handleOpenAlert]);
 
   /* Modal open/close handlers */
   const handleOpenAboutModal = () => {
@@ -248,8 +252,6 @@ const App: React.FC = () => {
     }, 1000);
   };
 
-  /* App routes navigation handlers */
-
   /* Alert handler */
   const handleCloseAlert = (
     event?: React.SyntheticEvent | Event,
@@ -262,11 +264,7 @@ const App: React.FC = () => {
   };
 
   const handleToggleMute = () => {
-    setIsMuted((prevIsMuted: boolean) => {
-      const newMuteState = !prevIsMuted;
-      localStorage.setItem('mute', newMuteState.toString());
-      return newMuteState;
-    });
+    setIsMuted((prevIsMuted: boolean) => !prevIsMuted);
   };
 
   /****************************************************************************/
@@ -283,31 +281,42 @@ const App: React.FC = () => {
   const [connectionError, setConnectionError] = useState<string>('');
 
   const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
 
   /* Websocket endpoint */
   const wsAddress = getBackendWebSocketUrl();
 
   /* Websocket setup */
   useEffect(() => {
+    let shouldReconnect = true;
+
     const connectWebSocket = () => {
-      socketRef.current = new WebSocket(wsAddress);
+      const socket = new WebSocket(wsAddress);
+      socketRef.current = socket;
+
       /* WS onopen */
-      socketRef.current.onopen = () => {
+      socket.onopen = () => {
         setConnectionError('');
         setRunning(true);
       };
       /* WS onmessage */
-      socketRef.current.onmessage = (event: MessageEvent) => {
+      socket.onmessage = (event: MessageEvent) => {
         setResponse(event.data);
       };
       /* WS onclose */
-      socketRef.current.onclose = () => {
-        setConnectionError('WebSocket connection closed. Reconnecting...');
+      socket.onclose = () => {
         setRunning(false);
-        setTimeout(connectWebSocket, TIMEOUT);
+        if (!shouldReconnect) {
+          return;
+        }
+        setConnectionError('WebSocket connection closed. Reconnecting...');
+        reconnectTimerRef.current = window.setTimeout(
+          connectWebSocket,
+          TIMEOUT
+        );
       };
       /* WS onerror */
-      socketRef.current.onerror = (error: Event) => {
+      socket.onerror = (error: Event) => {
         console.error(
           'Error: Could not establish WebSocket connection:',
           error
@@ -319,11 +328,17 @@ const App: React.FC = () => {
     connectWebSocket();
 
     return () => {
+      shouldReconnect = false;
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (socketRef.current) {
         socketRef.current.close();
+        socketRef.current = null;
       }
     };
-  }, []);
+  }, [wsAddress]);
 
   /* WebSocket status indicator */
   const WsStatus = () => {
@@ -480,7 +495,7 @@ const App: React.FC = () => {
   };
 
   const postKey = (key: string): void => {
-    if (!socketRef.current) {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
       console.error('WebSocket is not connected.');
       return;
     }
@@ -520,128 +535,89 @@ const App: React.FC = () => {
               justifyContent: 'space-between'
             }}
           >
-            {/* Mute button */}
-            <Tooltip title={isMuted ? 'Unmute audio' : 'Mute audio'} arrow>
-              <div>
-                <CustomStyledIconButton
-                  color="inherit"
-                  aria-label="mute/unmute audio"
-                  onClick={handleToggleMute}
-                  edge="end"
-                  sx={{ marginRight: '0px' }}
-                >
-                  {isMuted ? (
-                    <VolumeOffOutlinedIcon
-                      sx={{
-                        width: '20px',
-                        height: '20px',
-                        color: 'text.secondary'
-                      }}
-                    />
-                  ) : (
-                    <VolumeUpOutlinedIcon
-                      sx={{
-                        width: '20px',
-                        height: '20px',
-                        color: 'text.secondary'
-                      }}
-                    />
-                  )}
-                </CustomStyledIconButton>
-              </div>
-            </Tooltip>
-
-            {/* Info Button (left of theme icon) */}
-            <Tooltip title="About info" arrow>
-              <div>
-                <CustomStyledIconButton
-                  color="inherit"
-                  aria-label="about info"
-                  onClick={handleOpenAboutModal}
-                  edge="end"
-                  sx={{ marginRight: '0px' }}
-                >
-                  <InfoOutlinedIcon
-                    sx={{
-                      width: '20px',
-                      height: '20px',
-                      color: 'text.secondary'
-                    }}
-                  />
-                </CustomStyledIconButton>
-              </div>
-            </Tooltip>
-
-            {/* Theme Toggle Button */}
-            <Tooltip title="Toggle theme" arrow>
-              <div>
-                <CustomStyledIconButton
-                  color="inherit"
-                  aria-label="toggle theme"
-                  onClick={toggleTheme}
-                  edge="end"
-                  sx={{ marginRight: '0px' }}
-                >
-                  <ContrastIcon
-                    sx={{
-                      width: '20px',
-                      height: '20px',
-                      color: 'text.secondary'
-                    }}
-                  />
-                </CustomStyledIconButton>
-              </div>
-            </Tooltip>
-
-            {/* Debug Toggle Button */}
-            <Tooltip title="Toggle debug" arrow>
-              <div>
-                <CustomStyledIconButton
-                  color="inherit"
-                  aria-label="toggle debug"
-                  onClick={toggleDebug}
-                  edge="end"
-                  sx={{ marginRight: '0px', position: 'relative' }}
-                >
-                  <BugReportOutlinedIcon
-                    sx={{
-                      width: '20px',
-                      height: '20px',
-                      color: 'text.secondary'
-                    }}
-                  />
-                  {/* Cross line overlay */}
-                  {!appSettings.debug && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        width: '24px',
-                        height: '2px',
-                        backgroundColor: 'error.main',
-                        transform: 'translate(-50%, -50%) rotate(45deg)',
-                        zIndex: 1
-                      }}
-                    />
-                  )}
-                </CustomStyledIconButton>
-              </div>
-            </Tooltip>
-
-            {/* WS streaming default toggle */}
-
-            {appSettings.debug && (
-              <Tooltip title="Toggle WebSocket stream" arrow>
+            {/* Left-side action buttons */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {/* Mute button */}
+              <Tooltip title={isMuted ? 'Unmute audio' : 'Mute audio'} arrow>
                 <div>
                   <CustomStyledIconButton
                     color="inherit"
-                    aria-label="toggle ws"
-                    onClick={toggleWSDefault}
-                    edge="end"
-                    sx={{ marginRight: '0px', position: 'relative' }}
+                    aria-label="mute/unmute audio"
+                    onClick={handleToggleMute}
+                    edge="start"
+                    sx={{ p: 0.5 }}
                   >
-                    <DisplaySettingsIcon
+                    {isMuted ? (
+                      <VolumeOffOutlinedIcon
+                        sx={{
+                          width: '20px',
+                          height: '20px',
+                          color: 'text.secondary'
+                        }}
+                      />
+                    ) : (
+                      <VolumeUpOutlinedIcon
+                        sx={{
+                          width: '20px',
+                          height: '20px',
+                          color: 'text.secondary'
+                        }}
+                      />
+                    )}
+                  </CustomStyledIconButton>
+                </div>
+              </Tooltip>
+
+              {/* Info Button */}
+              <Tooltip title="About info" arrow>
+                <div>
+                  <CustomStyledIconButton
+                    color="inherit"
+                    aria-label="about info"
+                    onClick={handleOpenAboutModal}
+                    sx={{ p: 0.5 }}
+                  >
+                    <InfoOutlinedIcon
+                      sx={{
+                        width: '20px',
+                        height: '20px',
+                        color: 'text.secondary'
+                      }}
+                    />
+                  </CustomStyledIconButton>
+                </div>
+              </Tooltip>
+
+              {/* Theme Toggle Button */}
+              <Tooltip title="Toggle theme" arrow>
+                <div>
+                  <CustomStyledIconButton
+                    color="inherit"
+                    aria-label="toggle theme"
+                    onClick={toggleTheme}
+                    sx={{ p: 0.5 }}
+                  >
+                    <ContrastIcon
+                      sx={{
+                        width: '20px',
+                        height: '20px',
+                        color: 'text.secondary'
+                      }}
+                    />
+                  </CustomStyledIconButton>
+                </div>
+              </Tooltip>
+
+              {/* Debug Toggle Button */}
+              <Tooltip title="Toggle debug" arrow>
+                <div>
+                  <CustomStyledIconButton
+                    color="inherit"
+                    aria-label="toggle debug"
+                    onClick={toggleDebug}
+                    sx={{ p: 0.5, position: 'relative' }}
+                  >
+                    <BugReportOutlinedIcon
                       sx={{
                         width: '20px',
                         height: '20px',
@@ -649,7 +625,7 @@ const App: React.FC = () => {
                       }}
                     />
                     {/* Cross line overlay */}
-                    {!appSettings.wsDefault && (
+                    {!appSettings.debug && (
                       <Box
                         sx={{
                           position: 'absolute',
@@ -666,7 +642,44 @@ const App: React.FC = () => {
                   </CustomStyledIconButton>
                 </div>
               </Tooltip>
-            )}
+
+              {/* WS streaming default toggle */}
+              {appSettings.debug && (
+                <Tooltip title="Toggle WebSocket stream" arrow>
+                  <div>
+                    <CustomStyledIconButton
+                      color="inherit"
+                      aria-label="toggle ws"
+                      onClick={toggleWSDefault}
+                      sx={{ p: 0.5, position: 'relative' }}
+                    >
+                      <DisplaySettingsIcon
+                        sx={{
+                          width: '20px',
+                          height: '20px',
+                          color: 'text.secondary'
+                        }}
+                      />
+                      {/* Cross line overlay */}
+                      {!appSettings.wsDefault && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            width: '24px',
+                            height: '2px',
+                            backgroundColor: 'error.main',
+                            transform: 'translate(-50%, -50%) rotate(45deg)',
+                            zIndex: 1
+                          }}
+                        />
+                      )}
+                    </CustomStyledIconButton>
+                  </div>
+                </Tooltip>
+              )}
+            </Box>
 
             {/* Title and Logo */}
             <Box
@@ -674,7 +687,8 @@ const App: React.FC = () => {
                 flexGrow: 1,
                 display: 'flex',
                 justifyContent: 'center',
-                alignItems: 'center'
+                alignItems: 'center',
+                px: 1
               }}
             >
               {/* Title */}
@@ -708,18 +722,18 @@ const App: React.FC = () => {
               </Fade>
             </Box>
 
-            {/* Menu button (left-aligned) */}
+            {/* Menu button (right-aligned) */}
             <Tooltip
               title={drawerOpen ? 'Close the menu' : 'Open the menu'}
               arrow
-              placement="right"
+              placement="left"
             >
               <div>
                 <CustomStyledIconButton
                   color="inherit"
                   aria-label="open drawer"
                   onClick={toggleDrawerOpen}
-                  edge="start"
+                  edge="end"
                   sx={{
                     ...(!isMobile && drawerOpen
                       ? { display: 'none' }
@@ -741,32 +755,16 @@ const App: React.FC = () => {
 
         {/* Drawer menu */}
         <Drawer
-          PaperProps={{ ref: drawerRef }}
           sx={{
             flexShrink: 0,
             '& .MuiDrawer-paper': {
+              border: 'none',
+              boxShadow: theme.shadows[4],
               boxSizing: 'border-box',
-              overflow: isMobile && !drawerOpen ? 'hidden' : 'auto',
-              /* Prevent horizontal overflow */
-              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
               position: 'fixed',
-              '&::-webkit-scrollbar': {
-                width: '8px',
-                backgroundColor: 'transparent'
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.grey[600]
-                    : theme.palette.grey[400],
-                borderRadius: '6px'
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: (theme) =>
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.grey[800]
-                    : theme.palette.grey[200]
-              },
               ...(isMobile
                 ? {
                     height: drawerOpen ? drawerHeight : appbarHeight,
@@ -813,7 +811,7 @@ const App: React.FC = () => {
             <Tooltip
               title={drawerOpen ? 'Close the menu' : 'Open the menu'}
               arrow
-              placement={'right'}
+              placement="left"
             >
               <div>
                 <CustomStyledIconButton
@@ -834,57 +832,88 @@ const App: React.FC = () => {
               </div>
             </Tooltip>
           </DrawerHeader>
+
+          {/* Drawer content starts here */}
           <Divider />
-          {/* NOTE: Drawer content here */}
-          <Box sx={{ paddingBottom: 1, pl: 1, pr: 1 }}>
-            <StartStop />
-            {appSettings.debug ? <LogBox /> : <InfoBox />}
-            <WsStatus />
-            {!isRunning && !isLoading && (
-              <Fade in={true} timeout={1000} mountOnEnter unmountOnExit>
-                <h3
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    paddingTop: '1em',
-                    color: '#ffcc00',
-                    fontFamily: 'Doom'
-                  }}
-                >
-                  Press START to play!
-                </h3>
-              </Fade>
-            )}
-            <h3 style={{ color: 'white' }}>
-              {!isRunning && isLoading ? (
+
+          {/* Scrollable drawer content */}
+          <Box
+            ref={drawerScrollRef}
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              '&::-webkit-scrollbar': {
+                width: '8px',
+                backgroundColor: 'transparent'
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.grey[600]
+                    : theme.palette.grey[400],
+                borderRadius: '6px'
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.grey[800]
+                    : theme.palette.grey[200]
+              }
+            }}
+          >
+            {/* NOTE: Drawer content here */}
+            <Box sx={{ paddingBottom: 1, pl: 1, pr: 1 }}>
+              <StartStop />
+              {appSettings.debug ? <LogBox /> : <InfoBox />}
+              <WsStatus />
+              {!isRunning && !isLoading && (
                 <Fade in={true} timeout={1000} mountOnEnter unmountOnExit>
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <SaveIcon
-                      className="spinner"
-                      style={{
-                        color: '#b30000',
-                        width: '24px',
-                        height: '24px',
-                        marginTop: '20px'
-                      }}
-                    />
-                    <div style={{ marginLeft: '10px' }} />
-                    <div
-                      style={{
-                        marginTop: '22px',
-                        fontFamily: 'Doom',
-                        color: '#ffcc00'
-                      }}
-                    >
-                      {loadingMessage}
-                    </div>
-                  </div>
+                  <h3
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      paddingTop: '1em',
+                      color: '#ffcc00',
+                      fontFamily: 'Doom'
+                    }}
+                  >
+                    Press START to play!
+                  </h3>
                 </Fade>
-              ) : (
-                ''
               )}
-            </h3>
-            <h3 style={{ color: 'white' }}>{errorResp}</h3>
+              <h3 style={{ color: 'white' }}>
+                {!isRunning && isLoading ? (
+                  <Fade in={true} timeout={1000} mountOnEnter unmountOnExit>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <SaveIcon
+                        className="spinner"
+                        style={{
+                          color: '#b30000',
+                          width: '24px',
+                          height: '24px',
+                          marginTop: '20px'
+                        }}
+                      />
+                      <div style={{ marginLeft: '10px' }} />
+                      <div
+                        style={{
+                          marginTop: '22px',
+                          fontFamily: 'Doom',
+                          color: '#ffcc00'
+                        }}
+                      >
+                        {loadingMessage}
+                      </div>
+                    </div>
+                  </Fade>
+                ) : (
+                  ''
+                )}
+              </h3>
+              <h3 style={{ color: 'white' }}>{errorResp}</h3>
+            </Box>
           </Box>
         </Drawer>
 
@@ -892,7 +921,7 @@ const App: React.FC = () => {
         <Main open={drawerOpen} isMobile={isMobile}>
           <DrawerHeader />
           {/* Video Player */}
-          <VideoPlayer showBoundingBoxes={showBoundingBoxes} />
+          <VideoPlayer />
         </Main>
 
         {/* Alert Snackbar */}
@@ -901,6 +930,7 @@ const App: React.FC = () => {
           alertSeverity={alertSeverity}
           alertContent={alertContent}
           handleCloseAlert={handleCloseAlert}
+          alertOffset={`calc(${appbarHeight} + ${theme.spacing(2)})`}
         />
 
         {/* About Modal */}
@@ -909,11 +939,15 @@ const App: React.FC = () => {
         {/* Scroll-to-Top Button for mobile */}
         {isMobile && drawerOpen && (
           <Fab
+            disableRipple
             color="primary"
             size="small"
             onClick={() => {
-              if (drawerRef.current) {
-                drawerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+              if (drawerScrollRef.current) {
+                drawerScrollRef.current.scrollTo({
+                  top: 0,
+                  behavior: 'smooth'
+                });
               }
             }}
             sx={{

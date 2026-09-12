@@ -1,3 +1,9 @@
+/**
+ * AboutModal
+ *
+ * This component displays an "About" modal dialog with application
+ * information, including version and license information.
+ */
 import React from 'react';
 import AppVersion from './AppVersion';
 import logo from '../assets/img/doom.png';
@@ -5,7 +11,10 @@ import { useGlobalContext } from './GlobalContext';
 import { useScreenSizes } from '../helpers/hooks.jsx';
 import { CustomBox, CustomButton } from './CustomComponents';
 /* MUI */
+import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
+import BuildIcon from '@mui/icons-material/Build';
+import Chip from '@mui/material/Chip';
 import Fade from '@mui/material/Fade';
 import Modal from '@mui/material/Modal';
 import Typography from '@mui/material/Typography';
@@ -24,6 +33,8 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
   /* Global context */
   const { appSettings } = useGlobalContext();
 
+  const theme = useTheme();
+
   return (
     <Modal
       aria-labelledby="about-modal-title"
@@ -31,6 +42,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
       open={open}
       onClose={handleClose}
       closeAfterTransition
+      sx={{ zIndex: 2000 }}
     >
       <Fade in={open}>
         <Box
@@ -47,10 +59,11 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
             height: isMobile ? '100%' : 'auto',
             maxWidth: '800px',
             minWidth: '300px',
+            maxHeight: isMobile ? '100%' : '90vh',
+            overflowY: 'auto',
             bgcolor: 'background.paper',
             boxShadow: 24,
-            borderRadius: isMobile ? 0 : 1,
-            overflowY: isMobile ? 'auto' : 'unset'
+            borderRadius: isMobile ? 0 : 1
           }}
         >
           <img
@@ -62,6 +75,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
             }}
           />
           <Typography
+            color="text.primary"
             id="about-modal-title"
             variant="h6"
             component="h2"
@@ -69,13 +83,28 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
           >
             About {import.meta.env.VITE_WEBSITE_NAME}
           </Typography>
+
+          {/* Version info */}
           <Typography
             id="about-modal-description"
             sx={{ marginTop: 2, marginBottom: 2 }}
           >
             Version: {import.meta.env.VITE_VERSION}
-            {appSettings.debug ? <AppVersion /> : <br />}
-            Copyright © {new Date().getFullYear()}
+            <br />
+            {appSettings.debug ? (
+              <>
+                <Chip
+                  color="warning"
+                  size="small"
+                  label={<AppVersion />}
+                  icon={<BuildIcon />}
+                  sx={{ mt: 1, mb: 1 }}
+                />
+                <br />
+              </>
+            ) : null}
+            Copyright © {new Date().getFullYear()}{' '}
+            {import.meta.env.VITE_WEBSITE_NAME}
           </Typography>
 
           {/* License box */}
@@ -87,13 +116,14 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
             </Box>
             {/* Scrollable license box */}
             <CustomBox
-              sx={(theme) => ({
+              sx={{
                 maxHeight: '300px',
                 overflowY: 'auto',
                 border: `1px solid ${theme.palette.grey[600]}`,
                 padding: 2,
-                textAlign: 'left'
-              })}
+                textAlign: 'left',
+                bgcolor: 'background.default'
+              }}
             >
               {/* Preserve newlines in license text */}
               <pre
