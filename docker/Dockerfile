@@ -9,8 +9,6 @@ ARG SDK=acap-native-sdk
 ARG NODE_MAJOR=22
 ARG CGLM_VER=v0.9.4
 ARG CGLM_SHA256=101376d9f5db7139a54db35ccc439e40b679bc2efb756d3469d39ee38e69c41b
-ARG PW_VER=1.0.5
-ARG PW_SHA256=c5a5de26d684a1a84060ad7b6131654fb2835e03fccad85059be92f8e3ffe993
 ARG LWS_VER=v4.3-stable
 ARG LWS_SHA256=73966103951e1b7be9ed8cc1fcc5a288b6b4f795b0cd39d863b0cc98fe7aa302
 
@@ -34,8 +32,6 @@ ARG DOOM_WAD_URL
 ARG DOOM_WAD_SHA256
 ARG CGLM_VER
 ARG CGLM_SHA256
-ARG PW_VER
-ARG PW_SHA256
 ARG LWS_VER
 ARG LWS_SHA256
 ARG EXTRA_WS_ARGS
@@ -48,8 +44,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       cmake \
       curl \
       gnupg \
-      meson \
-      ninja-build \
     pkgconf \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -129,43 +123,5 @@ RUN . /opt/axis/acapsdk/environment-setup* && \
 # Copy static libwebsockets archive for linking:
 WORKDIR /opt/app/libwebsockets
 RUN cp -P "$ACAP_SDK_INSTALL_DIR"/lib/libwebsockets.a .
-
-##################### Setup and build PipeWire #################################
-
-# PW paths and version:
-ARG BUILD_DIR=/opt/build
-ARG PW_BUILD_PATH="$BUILD_DIR/PW"
-ARG PW_BUILD_DIR="$PW_BUILD_PATH/build"
-ARG PW_INSTALL_DIR="$PW_BUILD_PATH/install"
-ENV PKG_CONFIG_ALLOW_CROSS=1
-
-# Download and verify PipeWire to PW_BUILD_PATH:
-WORKDIR "$PW_BUILD_PATH"
-RUN curl -fsSLo /tmp/pipewire.tar.gz "https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/$PW_VER/pipewire-$PW_VER.tar.gz" && \
-    echo "$PW_SHA256  /tmp/pipewire.tar.gz" | sha256sum -c - && \
-    tar -xzf /tmp/pipewire.tar.gz --strip-components=1 && \
-    rm /tmp/pipewire.tar.gz && \
-    sed -i "/subdir('tools')/d" src/meson.build
-
-# Meson crossfile source: https://github.com/mesonbuild/meson/blob/master/cross/
-# Copy PW meson-crossfiles to PW_BUILD_PATH in image:
-COPY ./pipewire/meson-crossfile-*.txt ./
-
-# Build PW using meson-crossfile:
-RUN . /opt/axis/acapsdk/environment-setup* && \
-    meson setup --cross-file meson-crossfile-"$ARCH".txt "$PW_BUILD_DIR" \
-    -Ddbus=disabled \
-    -Dsession-managers=[] \
-    -Dudev=disabled \
-    -Dalsa=disabled \
-    -Dv4l2=disabled \
-    -Davb=disabled \
-    -Dprefix=${ACAP_SDK_INSTALL_DIR} && \
-    meson compile -C "$PW_BUILD_DIR" && meson install -C "$PW_BUILD_DIR"
-
-# Copy PW libs to /opt/app:
-WORKDIR /opt/app/libpipewire/pipewire-0.3
-RUN cp -r "$ACAP_SDK_INSTALL_DIR"/lib/libpipewire-* ../ && \
-    cp -r "$ACAP_SDK_INSTALL_DIR"/lib/pipewire-0.3/* ./
 
 ################################################################################
