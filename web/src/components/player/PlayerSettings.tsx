@@ -12,6 +12,7 @@
 import React, { ChangeEventHandler, useCallback, useEffect } from 'react';
 import { VapixParameters, Format } from 'media-stream-player';
 import { CustomButton, CustomSwitch } from '../CustomComponents';
+import { useGlobalContext } from '../GlobalContext';
 import { useParameters } from '../context/ParametersContext';
 import { darkTheme } from '../../theme';
 /* MUI */
@@ -41,6 +42,9 @@ const PlayerSettingsContent: React.FC<PlayerSettingsProps> = ({
 }) => {
   /* Theme */
   const theme = useTheme();
+
+  /* Global context */
+  const { appSettings } = useGlobalContext();
 
   /* Local state */
   const [cameraValue, setCameraValue] = React.useState<string>(
@@ -299,44 +303,56 @@ const PlayerSettingsContent: React.FC<PlayerSettingsProps> = ({
         alignItems: 'center' /* center labels with controls */
       }}
     >
-      <div>
-        Camera
-        <Typography variant="caption" sx={{ opacity: 0.7, display: 'block' }}>
-          Sources: {NbrOfSources}
-        </Typography>
-        <Typography variant="caption" sx={{ opacity: 0.7, display: 'block' }}>
-          Views: {NbrOfViews}
-        </Typography>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <TextField
-          variant="outlined"
-          size="small"
-          type="number"
-          value={cameraValue}
-          onChange={changeCamera}
-          placeholder="Default camera: 1"
-          error={cameraError !== ''}
-          slotProps={{
-            htmlInput: {
-              min: 1,
-              step: 1,
-              inputMode: 'numeric',
-              pattern: '[0-9]*',
-              onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key.length === 1 && !/[0-9]/.test(e.key)) {
-                  e.preventDefault();
-                }
-              }
-            }
-          }}
-        />
-        {cameraError && (
-          <div style={{ color: theme.palette.error.main, fontSize: '12px' }}>
-            {cameraError}
+      {appSettings.debug && (
+        <>
+          <div>
+            Camera
+            <Typography
+              variant="caption"
+              sx={{ opacity: 0.7, display: 'block' }}
+            >
+              Sources: {NbrOfSources}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ opacity: 0.7, display: 'block' }}
+            >
+              Views: {NbrOfViews}
+            </Typography>
           </div>
-        )}
-      </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <TextField
+              variant="outlined"
+              size="small"
+              type="number"
+              value={cameraValue}
+              onChange={changeCamera}
+              placeholder="Default camera: 1"
+              error={cameraError !== ''}
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  step: 1,
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key.length === 1 && !/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }
+                }
+              }}
+            />
+            {cameraError && (
+              <div
+                style={{ color: theme.palette.error.main, fontSize: '12px' }}
+              >
+                {cameraError}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <div>Format</div>
       <TextField select size="small" value={format} onChange={changeFormat}>
@@ -411,37 +427,43 @@ const PlayerSettingsContent: React.FC<PlayerSettingsProps> = ({
         )}
       </div>
 
-      <div>FPS (0 = ∞)</div>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <TextField
-          variant="outlined"
-          size="small"
-          type="number"
-          value={fpsValue}
-          onChange={changeFps}
-          placeholder="Default FPS"
-          error={fpsError !== ''}
-          slotProps={{
-            htmlInput: {
-              min: 0,
-              max: 999,
-              step: 1,
-              inputMode: 'numeric',
-              pattern: '[0-9]*',
-              onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key.length === 1 && !/[0-9]/.test(e.key)) {
-                  e.preventDefault();
+      {appSettings.debug && (
+        <>
+          <div>FPS (0 = ∞)</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <TextField
+              variant="outlined"
+              size="small"
+              type="number"
+              value={fpsValue}
+              onChange={changeFps}
+              placeholder="Default FPS"
+              error={fpsError !== ''}
+              slotProps={{
+                htmlInput: {
+                  min: 0,
+                  max: 999,
+                  step: 1,
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key.length === 1 && !/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }
                 }
-              }
-            }
-          }}
-        />
-        {fpsError && (
-          <div style={{ color: theme.palette.error.main, fontSize: '12px' }}>
-            {fpsError}
+              }}
+            />
+            {fpsError && (
+              <div
+                style={{ color: theme.palette.error.main, fontSize: '12px' }}
+              >
+                {fpsError}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       <CustomButton
         variant="outlined"
