@@ -1,13 +1,35 @@
 #!/bin/sh
+# Presubmit hook:
+# - Runs the web checks only when something under ./web has changed
+#   (based on staged files, falls back to unstaged files if nothing is staged).
+# - Use docker-clang-format.sh to format all .c/.h files under ./src.
+# - Make sure to run setuptarget.sh to setup the git hooks path before using this.
 
-echo "*** Format web"
-yarn --cwd web format
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 
-echo "*** Lint web"
-yarn --cwd web lint
+CHANGED_FILES="$(git diff --name-only --cached 2>/dev/null)"
 
-echo "*** Build web"
-yarn --cwd web build
+if [ -z "$CHANGED_FILES" ]; then
+  CHANGED_FILES="$(git diff --name-only 2>/dev/null)"
+fi
+
+# Web checks are expensive: skip them unless the change touches ./web
+if echo "$CHANGED_FILES" | grep -q '^web/' >/dev/null 2>&1; then
+  echo "*** Format web"
+  yarn --cwd web format
+
+  echo "*** Lint web"
+  yarn --cwd web lint
+
+  echo "*** Lint style"
+  yarn --cwd web stylelint
+
+  echo "*** Build web"
+  yarn --cwd web build
+fi
+
+echo "*** Formatting source files with clang-format..."
+"$SCRIPT_DIR/../scripts/docker-clang-format.sh"
 
 echo
 echo "*** Git hook done"
