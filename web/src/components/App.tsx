@@ -729,7 +729,7 @@ const App: React.FC = () => {
           <DrawerHeader
             sx={{
               display: 'flex',
-              justifyContent: 'flex-end',
+              justifyContent: 'center',
               alignItems: 'center',
               position: 'relative',
               width: '100%'
@@ -753,9 +753,16 @@ const App: React.FC = () => {
             <Tooltip
               title={drawerOpen ? 'Close the menu' : 'Open the menu'}
               arrow
-              placement="left"
+              placement="bottom"
             >
-              <div>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)'
+                }}
+              >
                 <CustomStyledIconButton
                   onClick={isMobile ? toggleDrawerOpen : handleDrawerClose}
                 >
