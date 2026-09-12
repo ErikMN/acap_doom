@@ -125,21 +125,14 @@ dockerprune: checkdocker
 # List all Docker images:
 .PHONY: dockerlist
 dockerlist: checkdocker
-	@docker image list $(DOCKER_X32_IMG)
+	@docker image list $(DOCKER_TAG)_armv7hf
 	@echo
-	@docker image list $(DOCKER_X64_IMG)
+	@docker image list $(DOCKER_TAG)_aarch64
 
 # Run current Docker image:
 .PHONY: dockerrun
 dockerrun: checkdocker
-ifeq ($(APPTYPE), armv7hf)
-	@$(DOCKER_CMD) $(DOCKER_X32_IMG)
-else ifeq ($(APPTYPE), aarch64)
-	@$(DOCKER_CMD) $(DOCKER_X64_IMG)
-else
-	@echo "Error: Unsupported APPTYPE"
-	@exit 1
-endif
+	@$(DOCKER_CMD) -e APPTYPE=$(APPTYPE) $(DOCKER_TAG)_$(APPTYPE)
 
 #==============================================================================#
 # Code helpers

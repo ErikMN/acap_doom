@@ -220,7 +220,7 @@ $(ARCHS): checkdocker
 # Fast build (only binary file) using Docker:
 .PHONY: build
 build: checkdocker
-	@$(DOCKER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./docker/build.sh $(FINAL)
+	@$(DOCKER_CMD) -e APPTYPE=$(APPTYPE) $(DOCKER_TAG)_$(APPTYPE) ./docker/build.sh $(FINAL)
 
 # Build the sound server:
 .PHONY: sndserv

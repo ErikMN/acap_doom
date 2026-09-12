@@ -12,7 +12,7 @@ FINAL=$1
 . /opt/axis/acapsdk/environment-setup*
 
 echo
-echo -e "${FMT_BLUE}>>> BUILDING FOR ARM64 using ACAPSDK $OECORE_SDK_VERSION${FMT_RESET}"
+echo -e "${FMT_BLUE}>>> BUILDING FOR $OECORE_TARGET_ARCH using ACAPSDK $OECORE_SDK_VERSION${FMT_RESET}"
 if [ "$FINAL" = "y" ]; then
 	echo -e "${FMT_YELLOW}*** RELEASE VERSION ***${FMT_RESET}"
 else
