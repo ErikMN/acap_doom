@@ -11,7 +11,7 @@
  */
 import React, { ChangeEventHandler, useCallback, useEffect } from 'react';
 import { VapixParameters, Format } from 'media-stream-player';
-import { CustomSwitch } from '../CustomComponents';
+import { CustomButton, CustomSwitch } from '../CustomComponents';
 import { useParameters } from '../context/ParametersContext';
 import { darkTheme } from '../../theme';
 /* MUI */
@@ -222,6 +222,18 @@ const PlayerSettingsContent: React.FC<PlayerSettingsProps> = ({
       [onVapix]
     );
 
+  const applyDoomPreset = useCallback(() => {
+    if (compressionTimerRef.current !== null) {
+      clearTimeout(compressionTimerRef.current);
+      compressionTimerRef.current = null;
+    }
+    setCompressionValue('20');
+    setCompressionError('');
+    onFormat(Format.RTP_H264);
+    onVapix('resolution', '1280x720');
+    onVapix('compression', '20');
+  }, [onFormat, onVapix]);
+
   /* Parse supported resolutions */
   const supportedResolutions = React.useMemo(() => {
     if (typeof Resolution !== 'string') return [];
@@ -430,6 +442,15 @@ const PlayerSettingsContent: React.FC<PlayerSettingsProps> = ({
           </div>
         )}
       </div>
+
+      <CustomButton
+        variant="outlined"
+        size="small"
+        onClick={applyDoomPreset}
+        sx={{ gridColumn: '1 / -1', mt: 0.5 }}
+      >
+        Apply DOOM stream preset
+      </CustomButton>
 
       <div>Client stream information</div>
       <CustomSwitch
