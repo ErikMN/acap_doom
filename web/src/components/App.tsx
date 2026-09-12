@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppSettings } from './commonInterfaces';
 import { useNavigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
-import { useParameters } from './ParametersContext';
+import { useParameters } from './context/ParametersContext';
 import { CustomStyledIconButton, CustomButton } from './CustomComponents';
 import { doomTheme, darkTheme } from '../theme';
 import { useLocalStorage, useScreenSizes } from '../helpers/hooks.jsx';

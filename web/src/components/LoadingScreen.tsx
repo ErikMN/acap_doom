@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useGlobalContext } from './GlobalContext';
-import { useParameters } from './ParametersContext';
+import { useParameters } from './context/ParametersContext';
 import { jsonRequest } from '../helpers/cgihelper';
 import { doomTheme, darkTheme } from '../theme';
 import { SR_CGI } from './constants';
