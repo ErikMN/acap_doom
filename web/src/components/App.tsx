@@ -180,6 +180,7 @@ const App: React.FC = () => {
   const { parameters } = useParameters();
   const ProdFullName = parameters?.['root.Brand.ProdFullName'];
   const ProdShortName = parameters?.['root.Brand.ProdShortName'];
+  const ProdVariant = parameters?.['root.Brand.ProdVariant'];
 
   /* Theme */
   const theme = currentTheme === 'dark' ? darkTheme : doomTheme;
@@ -523,7 +524,7 @@ const App: React.FC = () => {
                     color="inherit"
                     aria-label="mute/unmute audio"
                     onClick={handleToggleMute}
-                    edge="start"
+                    edge="end"
                     sx={{ p: 0.5 }}
                   >
                     {isMuted ? (
@@ -554,6 +555,7 @@ const App: React.FC = () => {
                     color="inherit"
                     aria-label="about info"
                     onClick={handleOpenAboutModal}
+                    edge="end"
                     sx={{ p: 0.5 }}
                   >
                     <InfoOutlinedIcon
@@ -574,6 +576,7 @@ const App: React.FC = () => {
                     color="inherit"
                     aria-label="toggle theme"
                     onClick={toggleTheme}
+                    edge="end"
                     sx={{ p: 0.5 }}
                   >
                     <ContrastIcon
@@ -594,6 +597,7 @@ const App: React.FC = () => {
                     color="inherit"
                     aria-label="toggle debug"
                     onClick={toggleDebug}
+                    edge="end"
                     sx={{ p: 0.5, position: 'relative' }}
                   >
                     <BugReportOutlinedIcon
@@ -629,14 +633,14 @@ const App: React.FC = () => {
                 flexGrow: 1,
                 display: 'flex',
                 justifyContent: 'center',
-                alignItems: 'center',
-                px: 1
+                alignItems: 'center'
               }}
             >
               {/* Title */}
               <Fade in={true} timeout={1000} mountOnEnter unmountOnExit>
                 <Typography
                   variant={isMobile ? 'h6' : 'h5'}
+                  color="text.primary"
                   noWrap
                   component="div"
                   style={{
@@ -663,6 +667,12 @@ const App: React.FC = () => {
                   {/* Website Name and Product Full Name */}
                   {import.meta.env.VITE_WEBSITE_NAME} @{' '}
                   {isMobile ? ProdShortName : ProdFullName}
+                  {/* Product variant */}
+                  {!isMobile && ProdVariant && (
+                    <Tooltip title="Product variant" arrow>
+                      <Chip label={ProdVariant} size="small" sx={{ ml: 1 }} />
+                    </Tooltip>
+                  )}
                 </Typography>
               </Fade>
             </Box>
@@ -680,9 +690,7 @@ const App: React.FC = () => {
                   onClick={toggleDrawerOpen}
                   edge="end"
                   sx={{
-                    ...(!isMobile && drawerOpen
-                      ? { display: 'none' }
-                      : { marginLeft: '10px' })
+                    ...(!isMobile && drawerOpen ? { display: 'none' } : {})
                   }}
                 >
                   <MenuIcon
