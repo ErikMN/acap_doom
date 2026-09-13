@@ -34,6 +34,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import { styled } from '@mui/material/styles';
 import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ContrastIcon from '@mui/icons-material/Contrast';
@@ -45,7 +46,6 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import MenuIcon from '@mui/icons-material/Menu';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -645,21 +645,24 @@ const App: React.FC = () => {
                     fontFamily: 'Doom'
                   }}
                 >
+                  {/* Debug mode */}
+                  {appSettings.debug && (
+                    <Tooltip
+                      title="Debug mode is now active. Additional prints and debug features enabled."
+                      arrow
+                    >
+                      <Chip
+                        size="small"
+                        color="error"
+                        icon={<BugReportOutlinedIcon />}
+                        label={'Debug mode'}
+                        sx={{ marginRight: '8px' }}
+                      />
+                    </Tooltip>
+                  )}
                   {/* Website Name and Product Full Name */}
                   {import.meta.env.VITE_WEBSITE_NAME} @{' '}
                   {isMobile ? ProdShortName : ProdFullName}
-                  {/* Debug Icon */}
-                  {appSettings.debug && (
-                    <ScienceOutlinedIcon
-                      sx={{
-                        marginLeft: '8px',
-                        marginTop: '5px',
-                        width: '20px',
-                        height: '20px',
-                        color: 'text.secondary'
-                      }}
-                    />
-                  )}
                 </Typography>
               </Fade>
             </Box>
