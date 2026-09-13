@@ -10,22 +10,22 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 CHANGED_FILES="$(git diff --name-only --cached 2>/dev/null)"
 
 if [ -z "$CHANGED_FILES" ]; then
-  CHANGED_FILES="$(git diff --name-only 2>/dev/null)"
+	CHANGED_FILES="$(git diff --name-only 2>/dev/null)"
 fi
 
 # Web checks are expensive: skip them unless the change touches ./web
 if echo "$CHANGED_FILES" | grep -q '^web/' >/dev/null 2>&1; then
-  echo "*** Format web"
-  yarn --cwd web format
+	echo "*** Format web"
+	yarn --cwd web format
 
-  echo "*** Lint web"
-  yarn --cwd web lint
+	echo "*** Lint web"
+	yarn --cwd web lint
 
-  echo "*** Lint style"
-  yarn --cwd web stylelint
+	echo "*** Lint style"
+	yarn --cwd web stylelint
 
-  echo "*** Build web"
-  yarn --cwd web build
+	echo "*** Build web"
+	yarn --cwd web build
 fi
 
 echo "*** Formatting source files with clang-format..."
