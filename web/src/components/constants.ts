@@ -1,6 +1,6 @@
 /* CGI endpoints */
 export const SR_CGI = '/axis-cgi/systemready.cgi';
-export const P_CGI = '/axis-cgi/param.cgi?action=list';
+export const P_CGI = '/axis-cgi/param.cgi';
 
 /* Drawer width and auto-close offset */
 export const drawerWidth = 360; // Official web UI uses 360px for right drawer and 270px for left (main) drawer

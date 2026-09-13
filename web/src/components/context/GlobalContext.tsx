@@ -1,8 +1,8 @@
 /* Application global context */
 import React, { createContext, useContext, useState } from 'react';
-import { useLocalStorage } from '../helpers/hooks.jsx';
-import { log, enableLogging } from '../helpers/logger.js';
-import { AppSettings, defaultAppSettings } from './commonInterfaces';
+import { useLocalStorage } from '../../helpers/hooks.jsx';
+import { log, enableLogging } from '../../helpers/logger.js';
+import { AppSettings, defaultAppSettings } from '../commonInterfaces.js';
 
 /* Interface defining the structure of the context */
 interface GlobalContextProps {

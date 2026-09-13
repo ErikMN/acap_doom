@@ -62,6 +62,25 @@ const doomTheme = createTheme({
     borderRadius: 8 // Default border-radius for components (e.g., buttons, cards)
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: (theme) => ({
+        body: {
+          scrollbarColor: `${theme.palette.grey[500]} ${theme.palette.background.default}`,
+          scrollbarWidth: 'thin'
+        },
+        '::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px'
+        },
+        '::-webkit-scrollbar-thumb': {
+          backgroundColor: theme.palette.grey[400],
+          borderRadius: '4px'
+        },
+        '::-webkit-scrollbar-track': {
+          backgroundColor: theme.palette.background.default
+        }
+      })
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -94,15 +113,15 @@ const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#ffcc00', // Primary color (buttons, app bar, etc.)
+      main: '#ffa726', // Primary color (buttons, app bar, etc.)
       contrastText: '#fff' // Text color on primary elements
     },
     secondary: {
       main: '#292929' // Secondary color
     },
     background: {
-      default: grey[900], // Background color for the whole app
-      paper: '#292929' // Background color for cards, dialogs, etc.
+      default: '#151515', // Background color for the whole app
+      paper: '#000000' // Background color for cards, dialogs, etc.
     },
     text: {
       primary: '#fff', // Text color for the default dark background
@@ -112,7 +131,7 @@ const darkTheme = createTheme({
       main: '#f44336' // Error color
     },
     warning: {
-      main: '#ffcc00' // Warning color
+      main: '#ffa726' // Warning color
     },
     info: {
       main: '#29b6f6' // Info color
@@ -148,6 +167,25 @@ const darkTheme = createTheme({
     borderRadius: 8 // Default border-radius for components (e.g., buttons, cards)
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: (theme) => ({
+        body: {
+          scrollbarColor: `${theme.palette.grey[500]} ${theme.palette.background.default}`,
+          scrollbarWidth: 'thin'
+        },
+        '::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px'
+        },
+        '::-webkit-scrollbar-thumb': {
+          backgroundColor: theme.palette.grey[700],
+          borderRadius: '4px'
+        },
+        '::-webkit-scrollbar-track': {
+          backgroundColor: theme.palette.background.default
+        }
+      })
+    },
     MuiButton: {
       styleOverrides: {
         root: {

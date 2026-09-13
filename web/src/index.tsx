@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import AppRoutes from './components/AppRoutes';
-import { GlobalProvider } from './components/GlobalContext';
-import { ParametersProvider } from './components/ParametersContext';
+import { GlobalProvider } from './components/context/GlobalContext';
+import { ParametersProvider } from './components/context/ParametersContext';
 
 import './assets/css/index.css';
 

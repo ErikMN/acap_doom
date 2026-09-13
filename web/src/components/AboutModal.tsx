@@ -1,12 +1,23 @@
+/**
+ * AboutModal
+ *
+ * This component displays an "About" modal dialog with application
+ * information, including version, license, and link to GitHub.
+ */
 import React from 'react';
 import AppVersion from './AppVersion';
 import logo from '../assets/img/doom.png';
-import { useGlobalContext } from './GlobalContext';
+import github_logo_white from '../assets/img/github-mark-white.svg';
+import { useGlobalContext } from './context/GlobalContext.js';
 import { useScreenSizes } from '../helpers/hooks.jsx';
 import { CustomBox, CustomButton } from './CustomComponents';
 /* MUI */
+import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
+import BuildIcon from '@mui/icons-material/Build';
+import Chip from '@mui/material/Chip';
 import Fade from '@mui/material/Fade';
+import MuiLink from '@mui/material/Link';
 import Modal from '@mui/material/Modal';
 import Typography from '@mui/material/Typography';
 
@@ -24,6 +35,8 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
   /* Global context */
   const { appSettings } = useGlobalContext();
 
+  const theme = useTheme();
+
   return (
     <Modal
       aria-labelledby="about-modal-title"
@@ -31,6 +44,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
       open={open}
       onClose={handleClose}
       closeAfterTransition
+      sx={{ zIndex: 2000 }}
     >
       <Fade in={open}>
         <Box
@@ -47,41 +61,106 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
             height: isMobile ? '100%' : 'auto',
             maxWidth: '800px',
             minWidth: '300px',
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            borderRadius: isMobile ? 0 : 1,
-            overflowY: isMobile ? 'auto' : 'unset'
+            maxHeight: isMobile ? '100%' : '90vh',
+            overflowY: 'auto',
+            bgcolor:
+              theme.palette.mode === 'dark' ? 'secondary.main' : 'primary.main',
+            border: isMobile
+              ? 'none'
+              : theme.palette.mode === 'dark'
+                ? `1px solid ${theme.palette.grey[700]}`
+                : `2px solid ${theme.palette.warning.main}`,
+            boxShadow:
+              theme.palette.mode === 'dark'
+                ? '0 24px 64px rgba(0, 0, 0, 0.75)'
+                : '0 24px 64px rgba(0, 0, 0, 0.45)',
+            borderRadius: isMobile ? 0 : 1
           }}
         >
           <img
             src={logo}
-            alt="logo"
+            alt="DOOM logo"
             style={{
               width: isMobile ? '80px' : '120px',
               marginBottom: '10px'
             }}
           />
           <Typography
+            color="text.primary"
             id="about-modal-title"
-            variant="h6"
+            variant="h5"
             component="h2"
             sx={{ fontFamily: 'Doom' }}
           >
             About {import.meta.env.VITE_WEBSITE_NAME}
           </Typography>
+
+          {/* Version info */}
           <Typography
             id="about-modal-description"
+            color="text.primary"
             sx={{ marginTop: 2, marginBottom: 2 }}
           >
             Version: {import.meta.env.VITE_VERSION}
-            {appSettings.debug ? <AppVersion /> : <br />}
-            Copyright © {new Date().getFullYear()}
+            <br />
+            {appSettings.debug ? (
+              <>
+                <Chip
+                  color="warning"
+                  size="small"
+                  label={<AppVersion />}
+                  icon={<BuildIcon />}
+                  sx={{ mt: 1, mb: 1 }}
+                />
+                <br />
+              </>
+            ) : null}
+            Copyright © {new Date().getFullYear()}{' '}
+            {import.meta.env.VITE_WEBSITE_NAME}
           </Typography>
+
+          {/* GitHub link */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              mt: 2
+            }}
+          >
+            <MuiLink
+              href="https://github.com/ErikMN/acap_doom"
+              target="_blank"
+              rel="noopener noreferrer"
+              underline="none"
+              aria-label="View acap_doom source code on GitHub"
+              color="text.primary"
+              sx={{
+                display: 'inline-flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                '& img': {
+                  width: '50px',
+                  height: '50px',
+                  cursor: 'pointer'
+                }
+              }}
+            >
+              <img src={github_logo_white} alt="GitHub logo" />
+              <Typography variant="caption" sx={{ mt: 1 }}>
+                View on GitHub
+              </Typography>
+            </MuiLink>
+          </Box>
 
           {/* License box */}
           <Box>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h6" sx={{ fontFamily: 'Doom' }}>
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
+              <Typography
+                color="text.primary"
+                variant="h6"
+                sx={{ fontFamily: 'Doom' }}
+              >
                 License
               </Typography>
             </Box>
@@ -90,14 +169,21 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
               sx={(theme) => ({
                 maxHeight: '300px',
                 overflowY: 'auto',
-                border: `1px solid ${theme.palette.grey[600]}`,
+                border:
+                  theme.palette.mode === 'dark'
+                    ? `1px solid ${theme.palette.grey[600]}`
+                    : `1px solid ${theme.palette.warning.main}`,
+                borderRadius: 1,
                 padding: 2,
-                textAlign: 'left'
+                textAlign: 'left',
+                bgcolor: 'background.default',
+                color: 'text.primary'
               })}
             >
               {/* Preserve newlines in license text */}
               <pre
                 style={{
+                  margin: 0,
                   fontFamily: 'inherit',
                   whiteSpace: 'pre-wrap',
                   wordWrap: 'break-word'
@@ -112,16 +198,18 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, handleClose }) => {
           <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
             <CustomButton
               onClick={handleClose}
-              sx={{
+              sx={(theme) => ({
                 width: 'auto',
                 paddingX: 3,
                 fontFamily: 'Doom',
-                backgroundColor: '#b30000',
-                color: '#ffcc00',
-                '&:hover': {
-                  backgroundColor: '#6d0000'
-                }
-              }}
+                ...(theme.palette.mode !== 'dark' && {
+                  backgroundColor: 'secondary.main',
+                  color: 'background.default',
+                  '&:hover': {
+                    backgroundColor: 'warning.light'
+                  }
+                })
+              })}
               variant="contained"
             >
               Close

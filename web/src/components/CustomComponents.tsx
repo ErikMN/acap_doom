@@ -1,3 +1,8 @@
+/**
+ * CustomComponents
+ *
+ * A collection of custom-styled MUI components used throughout the application.
+ */
 import React from 'react';
 /* MUI */
 import { Box, BoxProps } from '@mui/material';
@@ -101,7 +106,7 @@ const CustomStyledSwitch = styled(Switch)(({ theme }) => ({
 export interface CustomSwitchProps extends SwitchProps {}
 
 export const CustomSwitch: React.FC<CustomSwitchProps> = (props) => {
-  return <CustomStyledSwitch {...props} />;
+  return <CustomStyledSwitch disableRipple {...props} />;
 };
 
 /** Custom Box */
