@@ -381,9 +381,6 @@ const PlayerSettingsContent: React.FC<PlayerSettingsProps> = ({
         <MenuItem disableRipple value="MJPEG">
           Motion JPEG (MJPEG over HTTP)
         </MenuItem>
-        <MenuItem disableRipple value="JPEG">
-          Still image
-        </MenuItem>
       </TextField>
 
       <div>Resolution</div>
