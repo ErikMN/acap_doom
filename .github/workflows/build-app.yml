@@ -150,14 +150,18 @@ jobs:
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.set-tag.outputs.tag }}
         run: |
           mapfile -t EAP_FILES < <(find ./artifacts -type f -name '*.eap' -print | sort)
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${EAP_FILES[@]}" --clobber
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${EAP_FILES[@]}" \
+              --repo "$GH_REPO" \
+              --clobber
           else
             gh release create "$TAG" "${EAP_FILES[@]}" \
+              --repo "$GH_REPO" \
               --verify-tag \
               --title "Build for $TAG" \
               --notes "ACAP DOOM binaries for $TAG."
