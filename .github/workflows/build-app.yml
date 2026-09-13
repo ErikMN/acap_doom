@@ -30,16 +30,15 @@ jobs:
         id: set_tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "TAG=${{ inputs.tag_name }}" >> $GITHUB_ENV
-            echo "tag=${{ inputs.tag_name }}" >> $GITHUB_OUTPUT
+            echo "TAG=${{ inputs.tag_name }}" >> "$GITHUB_ENV"
+            echo "tag=${{ inputs.tag_name }}" >> "$GITHUB_OUTPUT"
           else
             # 'refs/tags/x.y.z' -> 'x.y.z'
             SHORT_REF="${GITHUB_REF#refs/tags/}"
-            echo "TAG=$SHORT_REF" >> $GITHUB_ENV
-            echo "tag=$SHORT_REF" >> $GITHUB_OUTPUT
+            echo "TAG=$SHORT_REF" >> "$GITHUB_ENV"
+            echo "tag=$SHORT_REF" >> "$GITHUB_OUTPUT"
           fi
 
-      # OPTIONAL: Validate the TAG format (e.g., x.y.z):
       - name: Validate tag
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
@@ -47,183 +46,91 @@ jobs:
             echo "Tag must be in the format x.y.z"
             exit 1
           fi
-      # ====================================================================== #
 
-  build-aarch64:
-    name: Build ACAP DOOM aarch64 Binary
+  build:
+    name: Build ACAP DOOM ${{ matrix.arch }} Binary
     runs-on: ubuntu-latest
     needs: set-tag
 
-    outputs:
-      # Provide the EAP file as a job-level output so "publish" can reference it:
-      EAP_FILE_64: ${{ steps.find_eap_aarch64.outputs.EAP_FILE_64 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - aarch64
+          - armv7hf
 
     steps:
-      # Cache Docker layers
       - name: Cache Docker layers
         uses: actions/cache@v6
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-aarch64-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ matrix.arch }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-aarch64-
+            ${{ runner.os }}-buildx-${{ matrix.arch }}-
 
-      # Check out the repository at the correct tag:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-tag.outputs.tag }}
 
-      # Set up Docker Buildx:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # ====================================================================== #
-      # Build the Docker image (aarch64):
-      - name: Build Docker Image (aarch64)
+      - name: Build Docker Image (${{ matrix.arch }})
         run: |
           docker buildx build \
+            --build-arg ARCH=${{ matrix.arch }} \
             --cache-from type=local,src=/tmp/.buildx-cache \
             --cache-to type=local,dest=/tmp/.buildx-cache-new \
             --load \
             --progress=plain \
-            -f docker/Dockerfile.aarch64 \
-            ./docker -t acap_doom_aarch64
+            -t acap_doom_${{ matrix.arch }} \
+            ./docker
 
       - name: Move new Docker cache
         if: always()
-        run: mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+        run: |
+          if [ -d /tmp/.buildx-cache-new ]; then
+            rm -rf /tmp/.buildx-cache
+            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          fi
 
-      # Run ACAP build inside Docker (aarch64):
-      - name: Build .eap inside Docker (aarch64)
+      # The Docker image contains the verified shareware WAD used by packaging.
+      - name: Copy WAD from Docker Image (${{ matrix.arch }})
+        run: |
+          bash ./scripts/dockercopy.sh \
+            -i acap_doom_${{ matrix.arch }} \
+            -f /opt/app/doom1.wad
+
+      - name: Build .eap inside Docker (${{ matrix.arch }})
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
+            -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            acap_doom_aarch64 \
-            bash -c 'if [ ! -f doom1.wad ]; then
-                      echo "Downloading doom1.wad...";
-                      curl -fsSL -o doom1.wad https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad && \
-                      expected_sha1="5b2e249b9c5133ec987b3ea77596381dc0d6bc1d" && \
-                      echo "$expected_sha1  doom1.wad" | sha1sum -c - || \
-                      (echo "Checksum verification failed. Exiting." && exit 1);
-                    fi && \
-                    rm -rf /workspace/libwebsockets && \
-                    cp -a /opt/app/libwebsockets/. /workspace/libwebsockets && \
-                    ./docker/build_snd.sh 1 && \
-                    ./docker/build_aarch64.sh 1 acap_doom "ACAP DOOM" y'
+            acap_doom_${{ matrix.arch }} \
+            bash -c './docker/build_snd.sh y && ./docker/build_eap.sh 1 acap_doom "ACAP DOOM" ${{ matrix.arch }} y'
 
-      # Find the aarch64 EAP file:
-      - name: Find EAP file (aarch64)
-        id: find_eap_aarch64
+      - name: Find EAP file (${{ matrix.arch }})
+        id: find_eap
         run: |
-          EAP_FILE_64=$(ls -1 *aarch64.eap 2>/dev/null | head -n1)
-          if [ -z "$EAP_FILE_64" ]; then
-            echo "No aarch64 .eap file found!"
+          EAP_FILE=$(ls -1 *${{ matrix.arch }}.eap 2>/dev/null | head -n1)
+          if [ -z "$EAP_FILE" ]; then
+            echo "No ${{ matrix.arch }} .eap file found!"
             exit 1
           fi
-          echo "Found EAP file for aarch64: $EAP_FILE_64"
-          echo "EAP_FILE_64=$EAP_FILE_64" >> $GITHUB_OUTPUT
+          echo "Found EAP file for ${{ matrix.arch }}: $EAP_FILE"
+          echo "eap_file=$EAP_FILE" >> "$GITHUB_OUTPUT"
 
-      - name: upload
+      - name: Upload EAP artifact
         uses: actions/upload-artifact@v4
         with:
-          # Use the step output instead of env variable
-          name: ${{ steps.find_eap_aarch64.outputs.EAP_FILE_64 }}
-          path: ${{ steps.find_eap_aarch64.outputs.EAP_FILE_64 }}
-
-          # ================================================================== #
-
-  build-armv7hf:
-    name: Build ACAP DOOM armv7hf Binary
-    runs-on: ubuntu-latest
-    needs: set-tag
-
-    outputs:
-      # Provide the EAP file as a job-level output so "publish" can reference it:
-      EAP_FILE_32: ${{ steps.find_eap_armv7hf.outputs.EAP_FILE_32 }}
-
-    steps:
-      # Cache Docker layers
-      - name: Cache Docker layers
-        uses: actions/cache@v6
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-armv7hf-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-armv7hf-
-
-      # Check out the repository at the correct tag:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.set-tag.outputs.tag }}
-
-      # Set up Docker Buildx:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      # ====================================================================== #
-      # Build the Docker image (armv7hf):
-      - name: Build Docker Image (armv7hf)
-        run: |
-          docker buildx build \
-            --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache-new \
-            --load \
-            --progress=plain \
-            -f docker/Dockerfile.armv7hf \
-            ./docker -t acap_doom_armv7hf
-
-      - name: Move new Docker cache
-        if: always()
-        run: mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-      # Run ACAP build inside Docker (armv7hf):
-      - name: Build .eap inside Docker (armv7hf)
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            acap_doom_armv7hf \
-            bash -c 'if [ ! -f doom1.wad ]; then
-                      echo "Downloading doom1.wad...";
-                      curl -fsSL -o doom1.wad https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad && \
-                      expected_sha1="5b2e249b9c5133ec987b3ea77596381dc0d6bc1d" && \
-                      echo "$expected_sha1  doom1.wad" | sha1sum -c - || \
-                      (echo "Checksum verification failed. Exiting." && exit 1);
-                    fi && \
-                    rm -rf /workspace/libwebsockets && \
-                    cp -a /opt/app/libwebsockets/. /workspace/libwebsockets && \
-                    ./docker/build_snd.sh 1 && \
-                    ./docker/build_armv7hf.sh 1 acap_doom "ACAP DOOM" y'
-
-      # Find the armv7hf EAP file:
-      - name: Find EAP file (armv7hf)
-        id: find_eap_armv7hf
-        run: |
-          EAP_FILE_32=$(ls -1 *armv7hf.eap 2>/dev/null | head -n1)
-          if [ -z "$EAP_FILE_32" ]; then
-            echo "No armv7hf .eap file found!"
-            exit 1
-          fi
-          echo "Found EAP file for armv7hf: $EAP_FILE_32"
-          echo "EAP_FILE_32=$EAP_FILE_32" >> $GITHUB_OUTPUT
-
-      - name: upload
-        uses: actions/upload-artifact@v4
-        with:
-          # Use the step output instead of env variable
-          name: ${{ steps.find_eap_armv7hf.outputs.EAP_FILE_32 }}
-          path: ${{ steps.find_eap_armv7hf.outputs.EAP_FILE_32 }}
-
-          # ================================================================== #
+          name: acap_doom_${{ matrix.arch }}
+          path: ${{ steps.find_eap.outputs.eap_file }}
 
   publish:
-    name: Publish ACAP DOOM Binary
+    name: Publish ACAP DOOM Binaries
     runs-on: ubuntu-latest
-
-    needs: [set-tag, build-aarch64, build-armv7hf]
+    needs: [set-tag, build]
 
     steps:
       - name: Download all build artifacts
@@ -231,41 +138,27 @@ jobs:
         with:
           path: ./artifacts
 
-      - name: List downloaded artifacts
-        run: ls -R ./artifacts
+      - name: Verify downloaded artifacts
+        run: |
+          find ./artifacts -type f -name '*.eap' -print
+          EAP_COUNT=$(find ./artifacts -type f -name '*.eap' | wc -l)
+          if [ "$EAP_COUNT" -ne 2 ]; then
+            echo "Expected 2 .eap files, found $EAP_COUNT"
+            exit 1
+          fi
 
-      # Create (or update) GitHub Release for the tag in env.TAG:
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Create or update GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.set-tag.outputs.tag }}
-          release_name: Build for ${{ needs.set-tag.outputs.tag }}
-          draft: false
-          prerelease: false
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.set-tag.outputs.tag }}
+        run: |
+          mapfile -t EAP_FILES < <(find ./artifacts -type f -name '*.eap' -print | sort)
 
-      # Upload the aarch64 EAP file:
-      - name: Upload aarch64 EAP file to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          # Point to the file inside its subfolder:
-          asset_path: ./artifacts/${{ needs.build-aarch64.outputs.EAP_FILE_64 }}/${{ needs.build-aarch64.outputs.EAP_FILE_64 }}
-          asset_name: ${{ needs.build-aarch64.outputs.EAP_FILE_64 }}
-          asset_content_type: application/octet-stream
-
-      # Upload the armv7hf EAP file:
-      - name: Upload armv7hf EAP file to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          # Point to the file inside its subfolder:
-          asset_path: ./artifacts/${{ needs.build-armv7hf.outputs.EAP_FILE_32 }}/${{ needs.build-armv7hf.outputs.EAP_FILE_32 }}
-          asset_name: ${{ needs.build-armv7hf.outputs.EAP_FILE_32 }}
-          asset_content_type: application/octet-stream
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${EAP_FILES[@]}" --clobber
+          else
+            gh release create "$TAG" "${EAP_FILES[@]}" \
+              --verify-tag \
+              --title "Build for $TAG" \
+              --notes "ACAP DOOM binaries for $TAG."
+          fi
