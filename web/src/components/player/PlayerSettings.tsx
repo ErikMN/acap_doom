@@ -233,15 +233,22 @@ const PlayerSettingsContent: React.FC<PlayerSettingsProps> = ({
     );
 
   const applyDoomPreset = useCallback(() => {
+    if (fpsTimerRef.current !== null) {
+      clearTimeout(fpsTimerRef.current);
+      fpsTimerRef.current = null;
+    }
     if (compressionTimerRef.current !== null) {
       clearTimeout(compressionTimerRef.current);
       compressionTimerRef.current = null;
     }
+    setFpsValue('');
+    setFpsError('');
     setCompressionValue('20');
     setCompressionError('');
     onFormat(Format.RTP_H264);
     onVapix('resolution', '1280x720');
     onVapix('compression', '20');
+    onVapix('fps', '');
   }, [onFormat, onVapix]);
 
   /* Parse supported resolutions */
