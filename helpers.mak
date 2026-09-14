@@ -115,24 +115,24 @@ release:
 	@./scripts/make_acap_release.sh
 
 #==============================================================================#
-# Docker helpers
+# OCI runtime helpers
 
 # Remove all stopped containers (not images):
-.PHONY: dockerprune
-dockerprune: checkdocker
-	@docker container prune
+.PHONY: containerprune
+containerprune: check$(CONTAINER_RUNTIME)
+	@$(CONTAINER_RUNTIME) container prune
 
-# List all Docker images:
-.PHONY: dockerlist
-dockerlist: checkdocker
-	@docker image list $(DOCKER_TAG)_armv7hf
+# List all OCI images:
+.PHONY: containerlist
+containerlist: check$(CONTAINER_RUNTIME)
+	@$(CONTAINER_RUNTIME) image list $(DOCKER_TAG)_armv7hf
 	@echo
-	@docker image list $(DOCKER_TAG)_aarch64
+	@$(CONTAINER_RUNTIME) image list $(DOCKER_TAG)_aarch64
 
-# Run current Docker image:
-.PHONY: dockerrun
-dockerrun: checkdocker
-	@$(DOCKER_CMD) -e APPTYPE=$(APPTYPE) $(DOCKER_TAG)_$(APPTYPE)
+# Run current OCI image:
+.PHONY: containerrun
+containerrun: check$(CONTAINER_RUNTIME)
+	@$(CONTAINER_CMD) -e APPTYPE=$(APPTYPE) $(DOCKER_TAG)_$(APPTYPE)
 
 #==============================================================================#
 # Code helpers
@@ -151,6 +151,6 @@ cppcheck:
 .PHONY: indent
 indent:
 	@echo "*** Formatting code"
-	@./scripts/docker-clang-format.sh
+	@./scripts/container-clang-format.sh
 
 #==============================================================================#

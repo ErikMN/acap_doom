@@ -36,15 +36,21 @@ Refer to your device manual to determine your platform.
 
 This application is intended to be built on a Linux or macOS system.
 
-## Build Docker images
+## Build container images
 
-**[Docker](https://docs.docker.com/engine/install/) and Make must be installed before proceeding.**
+**A container runtime (such as [Docker](https://docs.docker.com/engine/install/)) and Make must be installed before proceeding.**
 
 ```sh
-make dockersetup
+make containersetup
 ```
 
 This may take some time, as all required dependencies are built during this step.
+
+> [!TIP]
+> If you want to use e.g. Podman as your container runtime:
+>
+> ```sh
+> CONTAINER_RUNTIME=podman make containersetup
 
 ## Build the ACAP package
 
@@ -96,7 +102,7 @@ is the file format used by Doom and all Doom-engine-based games for storing data
 
 The WAD file used in ACAP Doom is the shareware version of Doom (`doom1.wad`, version 1.9, SHA-256 `1d7d43be501e67d927e415e0b8f3e29c3bf33075e859721816f652a526cac771`).
 
-`doom1.wad` will automatically be downloaded when running ```make dockersetup``` \
+`doom1.wad` will automatically be downloaded when running ```make containersetup``` \
 When building the ACAP package, it will be copied to the project directory.
 
 <table border="2" cellpadding="10" cellspacing="0" width="100%">

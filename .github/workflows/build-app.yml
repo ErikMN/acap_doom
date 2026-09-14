@@ -76,7 +76,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build Docker Image (${{ matrix.arch }})
+      - name: Build container Image (${{ matrix.arch }})
         run: |
           docker buildx build \
             --build-arg ARCH=${{ matrix.arch }} \
@@ -85,7 +85,7 @@ jobs:
             --load \
             --progress=plain \
             -t acap_doom_${{ matrix.arch }} \
-            ./docker
+            ./oci
 
       - name: Move new Docker cache
         if: always()
@@ -95,20 +95,20 @@ jobs:
             mv /tmp/.buildx-cache-new /tmp/.buildx-cache
           fi
 
-      # The Docker image contains the verified shareware WAD used by packaging.
-      - name: Copy WAD from Docker Image (${{ matrix.arch }})
+      # The container image contains the verified shareware WAD used by packaging.
+      - name: Copy WAD from container image (${{ matrix.arch }})
         run: |
-          bash ./scripts/dockercopy.sh \
+          bash ./scripts/containercopy.sh \
             -i acap_doom_${{ matrix.arch }} \
             -f /opt/app/doom1.wad
 
-      - name: Build .eap inside Docker (${{ matrix.arch }})
+      - name: Build .eap inside container (${{ matrix.arch }})
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             acap_doom_${{ matrix.arch }} \
-            bash -c './docker/build_snd.sh y && ./docker/build_eap.sh 1 acap_doom "ACAP DOOM" ${{ matrix.arch }} y'
+            bash -c './oci/build_snd.sh y && ./oci/build_eap.sh 1 acap_doom "ACAP DOOM" ${{ matrix.arch }} y'
 
       - name: Find EAP file (${{ matrix.arch }})
         id: find_eap
