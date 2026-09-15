@@ -21,7 +21,8 @@ LDLIBS = -lm
 DOCKER_TAG := acap_doom
 ARCHS = aarch64 armv7hf
 APPTYPE ?= aarch64
-DOCKER := $(shell command -v docker 2> /dev/null)
+CONTAINER_RUNTIME ?= docker
+DOCKER := $(shell command -v $(CONTAINER_RUNTIME) 2> /dev/null)
 NODE := $(shell command -v node 2> /dev/null)
 YARN := $(shell command -v yarn 2> /dev/null)
 ECHO := echo -e
@@ -44,18 +45,24 @@ d := $(CURDIR)
 $(shell touch $(d)/.yarnrc)
 $(shell chmod 644 $(d)/.yarnrc)
 
-# Run Docker cmd with provided image:
-DOCKER_CMD := docker run --rm -i -t \
-              -e TARGET_IP=$(TARGET_IP) \
-              -e TARGET_USR=$(TARGET_USR) \
-              -e TARGET_PWD=$(TARGET_PWD) \
-              -e HOME=$(d) \
-              -w $(d) \
-              -u $(shell id -u):$(shell id -g) \
-              -v $(d):$(d) \
-              -v /etc/passwd:/etc/passwd:ro \
-              -v /etc/group:/etc/group:ro \
-              -v $(d)/.yarnrc:$(d)/.yarnrc
+# Run container runtime cmd with provided image:
+CONTAINER_UID_ARGS :=
+ifeq ($(CONTAINER_RUNTIME),podman)
+CONTAINER_UID_ARGS := --userns=keep-id
+else
+CONTAINER_UID_ARGS := -u $(shell id -u):$(shell id -g)
+endif
+
+CONTAINER_CMD := $(CONTAINER_RUNTIME) run --rm -i -t $(CONTAINER_UID_ARGS) \
+                  -e TARGET_IP=$(TARGET_IP) \
+                  -e TARGET_USR=$(TARGET_USR) \
+                  -e TARGET_PWD=$(TARGET_PWD) \
+                  -e HOME=$(d) \
+                  -w $(d) \
+                  -v $(d):$(d) \
+                  -v /etc/passwd:/etc/passwd:ro \
+                  -v /etc/group:/etc/group:ro \
+                  -v $(d)/.yarnrc:$(d)/.yarnrc
 
 # Static linking of libwebsockets:
 LDLIBS += /opt/app/libwebsockets/libwebsockets.a
@@ -129,11 +136,11 @@ all: $(PROGS)
 .PHONY: help
 help:
 	@echo "Available targets:"
-	@echo "  dockersetup    : Create the Docker images ($(addprefix $(DOCKER_TAG)_,$(ARCHS)))"
-	@echo "  dockerlist     : List all Docker images"
-	@echo "  dockerrun      : Log in to the Docker image for current arch"
-	@echo "  armv7hf        : Build for 32-bit ARM in Docker"
-	@echo "  aarch64        : Build for 64-bit ARM in Docker"
+	@echo "  containersetup : Create the ACAP build container images ($(addprefix $(DOCKER_TAG)_,$(ARCHS)))"
+	@echo "  containerlist  : List all OCI container images"
+	@echo "  containerrun   : Log in to the OCI container image for current arch"
+	@echo "  armv7hf        : Build for 32-bit ARM in ACAP build container"
+	@echo "  aarch64        : Build for 64-bit ARM in ACAP build container"
 	@echo "  build          : Fast build ACAP binary for current arch"
 	@echo "  install        : Install the ACAP to target device"
 	@echo "  deploy         : Deploy the ACAP binary to target device (requires ACAP already installed)"
@@ -178,7 +185,7 @@ $(PROGS): $(OBJS)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 else
 $(PROGS):
-	$(error Please build "$@" from Docker, run 'make help')
+	$(error Please build "$@" from OCI container, run 'make help')
 endif
 
 # Build web:
@@ -194,43 +201,43 @@ endif
 	@$(RM) -r html
 	@cp -R web/build html
 
-# Check that Docker is installed:
-.PHONY: checkdocker
-checkdocker:
+# Check that container runtime is installed:
+.PHONY: check$(CONTAINER_RUNTIME)
+check$(CONTAINER_RUNTIME):
 ifndef DOCKER
-	$(error Please install Docker first!)
+	$(error Please install $(CONTAINER_RUNTIME) first!)
 endif
 
-# Create Docker image(s) to build in:
-.PHONY: %.dockersetup
-%.dockersetup: checkdocker
-	@docker build --build-arg ARCH=$(*F) -t $(DOCKER_TAG)_$(*F) ./docker
-# @docker build --progress=plain --no-cache --build-arg ARCH=$(*F) -t $(DOCKER_TAG)_$(*F) ./docker
+# Create OCI container image(s) to build in:
+.PHONY: %.containersetup
+%.containersetup: check$(CONTAINER_RUNTIME)
+	@$(CONTAINER_RUNTIME) build --build-arg ARCH=$(*F) -t $(DOCKER_TAG)_$(*F) ./oci
+# @$(CONTAINER_RUNTIME) build --progress=plain --no-cache --build-arg ARCH=$(*F) -t $(DOCKER_TAG)_$(*F) ./oci
 
-.PHONY: dockersetup
-dockersetup: $(addsuffix .dockersetup,$(ARCHS))
+.PHONY: containersetup
+containersetup: $(addsuffix .containersetup,$(ARCHS))
 
-# Build ACAP for selected target architecture using Docker:
+# Build ACAP for selected target architecture using container runtime:
 .PHONY: $(ARCHS)
-$(ARCHS): checkdocker
-	@./scripts/dockercopy.sh -i $(DOCKER_TAG)_$@ -f /opt/app/doom1.wad
-	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_snd.sh $(FINAL)
-	@$(DOCKER_CMD) $(DOCKER_TAG)_$@ ./docker/build_eap.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $@ $(FINAL)
+$(ARCHS): check$(CONTAINER_RUNTIME)
+	@./scripts/containercopy.sh -i $(DOCKER_TAG)_$@ -f /opt/app/doom1.wad
+	@$(CONTAINER_CMD) $(DOCKER_TAG)_$@ ./oci/build_snd.sh $(FINAL)
+	@$(CONTAINER_CMD) $(DOCKER_TAG)_$@ ./oci/build_eap.sh $(BUILD_WEB) $(PROGS) $(ACAP_NAME) $@ $(FINAL)
 
-# Fast build (only binary file) using Docker:
+# Fast build (only binary file) using ACAP build container:
 .PHONY: build
-build: checkdocker
-	@$(DOCKER_CMD) -e APPTYPE=$(APPTYPE) $(DOCKER_TAG)_$(APPTYPE) ./docker/build.sh $(FINAL)
+build: check$(CONTAINER_RUNTIME)
+	@$(CONTAINER_CMD) -e APPTYPE=$(APPTYPE) $(DOCKER_TAG)_$(APPTYPE) ./oci/build.sh $(FINAL)
 
 # Build the sound server:
 .PHONY: sndserv
-sndserv: checkdocker
-	@$(DOCKER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./docker/build_snd.sh $(FINAL)
+sndserv: check$(CONTAINER_RUNTIME)
+	@$(CONTAINER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./oci/build_snd.sh $(FINAL)
 
-# Install ACAP using Docker:
+# Install ACAP using ACAP build container:
 .PHONY: install
-install: checkdocker $(APPTYPE)
-	@$(DOCKER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./docker/eap-install.sh
+install: check$(CONTAINER_RUNTIME) $(APPTYPE)
+	@$(CONTAINER_CMD) $(DOCKER_TAG)_$(APPTYPE) ./oci/eap-install.sh
 
 # Clean up build artifacts:
 .PHONY: clean

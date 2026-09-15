@@ -1,29 +1,30 @@
 #!/bin/sh
 #
-# Run a fixed clang-format version in Docker
-# Requires a .clang-format-docker.conf configuration file with:
+# Run a fixed clang-format version in an OCI container
+# Requires a .clang-format-container.conf configuration file with:
 # SCAN_DIRS="" IGNORE_DIRS="" FILE_PATTERNS=""
 #
-# docker image ls project-clang-format
+# container image ls project-clang-format
 #
 set -eu
 
+CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-docker}
 IMAGE_NAME="project-clang-format"
 CLANG_VERSION="${CLANG_VERSION:-18}"
 FORMAT_BIN="/usr/lib/llvm${CLANG_VERSION}/bin/clang-format"
 IMAGE_TAG="${IMAGE_NAME}:${CLANG_VERSION}"
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-CONFIG_FILE="${CONFIG_FILE:-$PROJECT_ROOT/.clang-format-docker.conf}"
+CONFIG_FILE="${CONFIG_FILE:-$PROJECT_ROOT/.clang-format-container.conf}"
 
 die() {
 	printf "%s\n" "$1" >&2
 	exit 1
 }
 
-check_docker() {
-	command -v docker >/dev/null 2>&1 ||
-		die "Docker is not installed. Please install Docker first."
+check_container_runtime() {
+	command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1 ||
+		die ""$CONTAINER_RUNTIME" is not installed. Please install "$CONTAINER_RUNTIME" first."
 }
 
 load_config() {
@@ -40,21 +41,21 @@ load_config() {
 }
 
 ensure_image() {
-	if docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+	if "$CONTAINER_RUNTIME" image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
 		return
 	fi
 
-	printf "Building clang-format Docker image version %s\n" "$CLANG_VERSION"
+	printf "Building clang-format $CONTAINER_RUNTIME image version %s\n" "$CLANG_VERSION"
 
-	docker build -t "$IMAGE_TAG" - <<EOF
+	"$CONTAINER_RUNTIME" build -t "$IMAGE_TAG" - <<EOF
 FROM alpine:3.20
 RUN apk add --no-cache clang${CLANG_VERSION}-extra-tools
 WORKDIR /workspace
 EOF
 }
 
-docker_run() {
-	docker run --rm \
+container_run() {
+	"$CONTAINER_RUNTIME" run --rm \
 		-u "$(id -u):$(id -g)" \
 		-v "$PROJECT_ROOT:$PROJECT_ROOT" \
 		-w "$PROJECT_ROOT" \
@@ -62,8 +63,8 @@ docker_run() {
 		"$@"
 }
 
-docker_format() {
-	docker_run \
+container_format() {
+	"$CONTAINER_RUNTIME"_run \
 		"$FORMAT_BIN" \
 		-style=file \
 		-i \
@@ -116,11 +117,11 @@ format_tree() {
 	set -- "$@" \) \
 		-exec "$FORMAT_BIN" -style=file -i -fallback-style=none {} +
 
-	docker_run "$@"
+	container_run "$@"
 }
 
 main() {
-	check_docker
+	check_container_runtime
 	load_config
 	ensure_image
 
@@ -129,7 +130,7 @@ main() {
 		return
 	fi
 
-	docker_format "$@"
+	container_format "$@"
 }
 
 main "$@"

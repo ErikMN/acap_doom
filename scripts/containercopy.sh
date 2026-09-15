@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Copy multiple files or directories from a Docker container to the host
+# Copy multiple files or directories from an OCI container to the host
 #
 # Example usage:
-#	 ./dockercopy.sh -i my_docker_img -f /opt/app/my_app
+#	 ./containercopy.sh -i my_container_img -f /opt/app/my_app
 #
 
 # Print colors:
@@ -13,9 +13,10 @@ FMT_YELLOW=$(printf '\033[33m')
 FMT_BOLD=$(printf '\033[1m')
 FMT_RESET=$(printf '\033[0m')
 
-# Check if docker is installed:
-if ! command -v docker >/dev/null 2>&1; then
-	echo "${FMT_RED}Error: docker is not installed or not in PATH.${FMT_RESET}"
+# Check if container runtime is installed:
+CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-docker}
+if ! command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
+	echo "${FMT_RED}Error: $CONTAINER_RUNTIME is not installed or not in PATH.${FMT_RESET}"
 	exit 1
 fi
 
@@ -67,7 +68,7 @@ else
 fi
 
 # Create a temporary container from the specified image:
-CONTAINER_ID=$(docker create "$IMAGE_NAME") || {
+CONTAINER_ID=$("$CONTAINER_RUNTIME" create "$IMAGE_NAME") || {
 	echo "${FMT_RED}Error: Failed to create temporary container${FMT_RESET}"
 	exit 1
 }
@@ -76,7 +77,7 @@ CONTAINER_ID=$(docker create "$IMAGE_NAME") || {
 cleanup() {
 	echo "${FMT_YELLOW}Cleaning up temporary container...${FMT_RESET}"
 	if [ -n "$CONTAINER_ID" ]; then
-		docker rm "$CONTAINER_ID" >/dev/null 2>&1 || {
+		"$CONTAINER_RUNTIME" rm "$CONTAINER_ID" >/dev/null 2>&1 || {
 			echo "${FMT_RED}Warning: Failed to remove temporary container${FMT_RESET}"
 		}
 	fi
@@ -94,7 +95,7 @@ for CONTAINER_PATH in "${CONTAINER_PATHS[@]}"; do
 	# Check if the specified file or directory already exists in the output directory:
 	if [ ! -e "$OUTPUT_DIR/$CONTAINER_PATH_BASENAME" ]; then
 		# Attempt to copy the specified file or directory from the temporary container to the output directory:
-		if docker cp "$CONTAINER_ID:$CONTAINER_PATH" "$OUTPUT_DIR"; then
+		if "$CONTAINER_RUNTIME" cp "$CONTAINER_ID:$CONTAINER_PATH" "$OUTPUT_DIR"; then
 			echo "${FMT_BOLD}${FMT_GREEN}Successfully copied '$CONTAINER_PATH' to $OUTPUT_DIR/$CONTAINER_PATH_BASENAME from $IMAGE_NAME${FMT_RESET}"
 		else
 			echo "${FMT_RED}Error: Failed to copy $CONTAINER_PATH${FMT_RESET}"
