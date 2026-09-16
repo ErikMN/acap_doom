@@ -24,7 +24,7 @@ die() {
 
 check_container_runtime() {
 	command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1 ||
-		die ""$CONTAINER_RUNTIME" is not installed. Please install "$CONTAINER_RUNTIME" first."
+		die "$CONTAINER_RUNTIME is not installed. Please install $CONTAINER_RUNTIME first."
 }
 
 load_config() {
