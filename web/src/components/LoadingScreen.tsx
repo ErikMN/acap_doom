@@ -41,13 +41,6 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ Component }) => {
     const fetchSystemReady = async () => {
       setAppLoading(true);
 
-      /* Check protocol for HTTPS */
-      if (window.location.protocol === 'https:') {
-        setMessage('PLEASE USE HTTP AND NOT HTTPS');
-        setAppLoading(false);
-        return;
-      }
-
       const payload = {
         apiVersion: '1.0',
         method: 'systemready',
