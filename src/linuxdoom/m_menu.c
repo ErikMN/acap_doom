@@ -1319,48 +1319,36 @@ M_Responder(event_t *ev)
   // Keys usable within menu
   switch (ch) {
   case KEY_DOWNARROW:
-    if (key_press_down) {
-      do {
-        if (itemOn + 1 > currentMenu->numitems - 1)
-          itemOn = 0;
-        else
-          itemOn++;
-        S_StartSound(NULL, sfx_pstop);
-        key_press_down = 0;
-      } while (currentMenu->menuitems[itemOn].status == -1);
-    }
+    do {
+      if (itemOn + 1 > currentMenu->numitems - 1)
+        itemOn = 0;
+      else
+        itemOn++;
+      S_StartSound(NULL, sfx_pstop);
+    } while (currentMenu->menuitems[itemOn].status == -1);
     return true;
 
   case KEY_UPARROW:
-    if (key_press_up) {
-      do {
-        if (!itemOn)
-          itemOn = currentMenu->numitems - 1;
-        else
-          itemOn--;
-        S_StartSound(NULL, sfx_pstop);
-        key_press_up = 0;
-      } while (currentMenu->menuitems[itemOn].status == -1);
-    }
+    do {
+      if (!itemOn)
+        itemOn = currentMenu->numitems - 1;
+      else
+        itemOn--;
+      S_StartSound(NULL, sfx_pstop);
+    } while (currentMenu->menuitems[itemOn].status == -1);
     return true;
 
   case KEY_LEFTARROW:
-    if (key_press_left) {
-      if (currentMenu->menuitems[itemOn].routine && currentMenu->menuitems[itemOn].status == 2) {
-        S_StartSound(NULL, sfx_stnmov);
-        currentMenu->menuitems[itemOn].routine(0);
-        key_press_left = 0;
-      }
+    if (currentMenu->menuitems[itemOn].routine && currentMenu->menuitems[itemOn].status == 2) {
+      S_StartSound(NULL, sfx_stnmov);
+      currentMenu->menuitems[itemOn].routine(0);
     }
     return true;
 
   case KEY_RIGHTARROW:
-    if (key_press_right) {
-      if (currentMenu->menuitems[itemOn].routine && currentMenu->menuitems[itemOn].status == 2) {
-        S_StartSound(NULL, sfx_stnmov);
-        currentMenu->menuitems[itemOn].routine(1);
-        key_press_right = 0;
-      }
+    if (currentMenu->menuitems[itemOn].routine && currentMenu->menuitems[itemOn].status == 2) {
+      S_StartSound(NULL, sfx_stnmov);
+      currentMenu->menuitems[itemOn].routine(1);
     }
     return true;
 

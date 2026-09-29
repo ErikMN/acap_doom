@@ -124,7 +124,7 @@ const InfoBox: React.FC = () => {
           icon={<CheckIcon />}
         />
         <MyListItem
-          primaryText="Game controls only work on this page."
+          primaryText="Click the game video to use the keyboard controls."
           icon={<InfoOutlinedIcon />}
         />
         <MyListItem

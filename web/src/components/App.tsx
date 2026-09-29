@@ -259,6 +259,8 @@ const App: React.FC = () => {
   const [response, setResponse] = useState<string>('');
   const [errorResp, setErrorResp] = useState<string>('');
   const [connectionError, setConnectionError] = useState<string>('');
+  const [controlsConnected, setControlsConnected] = useState<boolean>(false);
+  const [gameTarget, setGameTarget] = useState<HTMLDivElement | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
@@ -277,14 +279,12 @@ const App: React.FC = () => {
       /* WS onopen */
       socket.onopen = () => {
         setConnectionError('');
+        setControlsConnected(true);
         setRunning(true);
-      };
-      /* WS onmessage */
-      socket.onmessage = (event: MessageEvent) => {
-        setResponse(event.data);
       };
       /* WS onclose */
       socket.onclose = () => {
+        setControlsConnected(false);
         setRunning(false);
         if (!shouldReconnect) {
           return;
@@ -302,6 +302,7 @@ const App: React.FC = () => {
           error
         );
         setConnectionError('Error: Could not establish WebSocket connection.');
+        setControlsConnected(false);
         setRunning(false);
       };
     };
@@ -472,34 +473,6 @@ const App: React.FC = () => {
         </CustomButton>
       </div>
     );
-  };
-
-  const postKey = (key: string): void => {
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket is not connected.');
-      return;
-    }
-    const keyPressReq = JSON.stringify({
-      keyPress: key
-    });
-    try {
-      socketRef.current.send(keyPressReq);
-      // console.log(`Key event sent: ${key}`);
-    } catch (error) {
-      console.error('Failed to send key event:', error);
-    }
-  };
-
-  /* Key press callback function */
-  const handleKeyPress = (key: string): void => {
-    // console.log(`Key Pressed: ${key}`);
-    postKey(key);
-  };
-
-  /* Key release callback function */
-  const handleKeyRelease = (key: string): void => {
-    // console.log(`Key Released: ${key}`);
-    postKey(key);
   };
 
   /****************************************************************************/
@@ -881,7 +854,7 @@ const App: React.FC = () => {
         <Main open={drawerOpen} isMobile={isMobile}>
           <DrawerHeader />
           {/* Video Player */}
-          <VideoPlayer />
+          <VideoPlayer onContainerChange={setGameTarget} />
         </Main>
 
         {/* Alert Snackbar */}
@@ -921,8 +894,10 @@ const App: React.FC = () => {
           </Fab>
         )}
         <KeyPressHandler
-          onPressCallback={handleKeyPress}
-          onReleaseCallback={handleKeyRelease}
+          socketRef={socketRef}
+          target={gameTarget}
+          connected={controlsConnected}
+          onInput={setResponse}
         />
       </>
     );

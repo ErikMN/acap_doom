@@ -67,7 +67,7 @@ CONTAINER_CMD := $(CONTAINER_RUNTIME) run --rm -i -t $(CONTAINER_UID_ARGS) \
 # Static linking of libwebsockets:
 LDLIBS += /opt/app/libwebsockets/libwebsockets.a
 
-PKGS += glib-2.0 gio-2.0 axoverlay glesv2 jansson
+PKGS += glib-2.0 gio-2.0 axoverlay glesv2
 ifdef PKGS
 	LDLIBS += $(shell pkg-config --libs $(PKGS))
 	CFLAGS += $(shell pkg-config --cflags $(PKGS))

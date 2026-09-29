@@ -9,6 +9,10 @@ import { useGlobalContext } from './context/GlobalContext';
 import { CustomPlayer } from './player/CustomPlayer';
 import { Format } from 'media-stream-player';
 
+interface VideoPlayerProps {
+  onContainerChange: (element: HTMLDivElement | null) => void;
+}
+
 interface VapixConfig {
   compression: string;
   resolution: string;
@@ -26,7 +30,7 @@ const authorize = async (): Promise<void> => {
   }
 };
 
-const VideoPlayer: React.FC = () => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ onContainerChange }) => {
   /* Local state */
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authorized, setAuthorized] = useState<boolean>(false);
@@ -35,6 +39,13 @@ const VideoPlayer: React.FC = () => {
 
   /* Refs */
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
+  const setPlayerContainer = useCallback(
+    (element: HTMLDivElement | null) => {
+      playerContainerRef.current = element;
+      onContainerChange(element);
+    },
+    [onContainerChange]
+  );
 
   let vapixParams: Partial<VapixConfig> = {};
   const vapixData = window.localStorage.getItem('vapix');
@@ -104,7 +115,9 @@ const VideoPlayer: React.FC = () => {
 
   return (
     <div
-      ref={playerContainerRef}
+      ref={setPlayerContainer}
+      tabIndex={0}
+      aria-label="DOOM game controls"
       style={{
         flexGrow: 1,
         minHeight: 0,

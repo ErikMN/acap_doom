@@ -101,90 +101,14 @@ void
 I_GetEvent(void)
 {
   event_t event;
+  struct control_event input;
 
-  typedef struct {
-    int *key_press;
-    int key_code;
-    int debounce;
-  } KeyEvent;
-
-  /* List of key events */
-  const KeyEvent key_events[] = {
-    /* Arrow keys */
-    { &key_press_up, KEY_UPARROW, 0 },
-    { &key_press_left, KEY_LEFTARROW, 0 },
-    { &key_press_right, KEY_RIGHTARROW, 0 },
-    { &key_press_down, KEY_DOWNARROW, 0 },
-    /* Control keys */
-    { &key_press_enter, KEY_ENTER, 1 },
-    { &key_press_esc, KEY_ESCAPE, 1 },
-    { &key_press_ctrl, KEY_RCTRL, 0 },
-    { &key_press_shift, KEY_RSHIFT, 0 },
-    { &key_press_tab, KEY_TAB, 1 },
-    { &key_press_space, KEY_SPACE, 0 },
-    { &key_press_backspace, KEY_BACKSPACE, 1 },
-    /* Character keys */
-    { &key_press_comma, ',', 0 },
-    { &key_press_dot, '.', 0 },
-    /* Number keys */
-    { &key_press_0, '0', 0 },
-    { &key_press_1, '1', 0 },
-    { &key_press_2, '2', 0 },
-    { &key_press_3, '3', 0 },
-    { &key_press_4, '4', 0 },
-    { &key_press_5, '5', 0 },
-    { &key_press_6, '6', 0 },
-    { &key_press_7, '7', 0 },
-    { &key_press_8, '8', 0 },
-    { &key_press_9, '9', 0 },
-    /* Letter keys */
-    { &key_press_a, 'a', 1 },
-    { &key_press_b, 'b', 1 },
-    { &key_press_c, 'c', 1 },
-    { &key_press_d, 'd', 1 },
-    { &key_press_e, 'e', 1 },
-    { &key_press_f, 'f', 1 },
-    { &key_press_g, 'g', 1 },
-    { &key_press_h, 'h', 1 },
-    { &key_press_i, 'i', 1 },
-    { &key_press_j, 'j', 1 },
-    { &key_press_k, 'k', 1 },
-    { &key_press_l, 'l', 1 },
-    { &key_press_m, 'm', 1 },
-    { &key_press_n, 'n', 1 },
-    { &key_press_o, 'o', 1 },
-    { &key_press_p, 'p', 1 },
-    { &key_press_q, 'q', 1 },
-    { &key_press_r, 'r', 1 },
-    { &key_press_s, 's', 1 },
-    { &key_press_t, 't', 1 },
-    { &key_press_u, 'u', 1 },
-    { &key_press_v, 'v', 1 },
-    { &key_press_w, 'w', 1 },
-    { &key_press_x, 'x', 1 },
-    { &key_press_y, 'y', 1 },
-    { &key_press_z, 'z', 1 },
-    { NULL, 0, 0 },
-  };
-
-  for (int i = 0; key_events[i].key_press != NULL; i++) {
-    if (*(key_events[i].key_press)) {
-      /* Key press */
-      event.type = ev_keydown;
-      event.data1 = key_events[i].key_code;
-      event.data2 = 0;
-      event.data3 = 0;
-      /* Debounce key */
-      if (key_events[i].debounce) {
-        *(key_events[i].key_press) = 0;
-      }
-    } else {
-      /* Key release */
-      event.type = ev_keyup;
-      event.data1 = key_events[i].key_code;
-      event.data2 = 0;
-      event.data3 = 0;
-    }
+  /* Leave queued input for the next tick when DOOM's event buffer is full */
+  while (((eventhead + 1) & (MAXEVENTS - 1)) != eventtail && controls_next_event(&input)) {
+    event.type = input.down ? ev_keydown : ev_keyup;
+    event.data1 = input.key;
+    event.data2 = 0;
+    event.data3 = 0;
     D_PostEvent(&event);
   }
 }
