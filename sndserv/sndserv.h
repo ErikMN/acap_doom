@@ -14,18 +14,14 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include <pthread.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdint.h>
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/format-utils.h>
 
 #define SNDSERV_VERSION "1.0"
-
-#ifdef HOST
-#define SAMPLECOUNT 256
-#else
-#define SAMPLECOUNT 512
-#endif
-#define MIXBUFFERSIZE (SAMPLECOUNT * 2 * 2)
 
 #ifdef DEBUG
 #define DBUG(x) x
@@ -65,13 +61,6 @@
 #else
 #define NOT_USED
 #endif
-
-/* Function prototypes */
-void I_InitMusic(void);
-void I_InitSound(int samplerate, int samplesound);
-void I_SubmitOutputBuffer(void *samples, int samplecount);
-void I_ShutdownSound(void);
-void I_ShutdownMusic(void);
 
 /* SoundFX struct. */
 typedef struct sfxinfo_struct sfxinfo_t;
@@ -233,13 +222,14 @@ void openwad(char *wadname);
  * Gets a sound effect from the wad file. The pointer points to the
  * start of the data. Returns a 0 if the sfx was not found.
  * Sfx names should be no longer than 6 characters.
- * All data is rounded up in size to the nearest MIXBUFFERSIZE and is
- * padded out with 0x80's. Returns the data length in len.
+ * Returns validated sample data, its length, and its sample rate.
  */
-void *getsfx(char *sfxname, int *len);
+void *getsfx(char *sfxname, int *len, unsigned int *rate);
 
 /* Get all SFX from WAD */
-void grabdata(void);
+void grabdata(char *wadname);
+void freedata(void);
 
 /* Lengths of all sound effects */
 extern int lengths[NUMSFX];
+extern unsigned int sample_rates[NUMSFX];

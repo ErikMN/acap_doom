@@ -5,6 +5,7 @@
 
 /* Lengths of all sound effects */
 int lengths[NUMSFX];
+unsigned int sample_rates[NUMSFX];
 
 /* Information about all the sfx */
 /* {name, singularity, prio, *link, pitch, vol, *data, usefulness, lumpnum} */
@@ -171,6 +172,23 @@ derror(char *msg)
   exit(-1);
 }
 
+static bool
+read_data(int fd, void *buffer, size_t size)
+{
+  size_t offset = 0;
+  while (offset < size) {
+    ssize_t result = read(fd, (uint8_t *)buffer + offset, size - offset);
+    if (result < 0 && errno == EINTR) {
+      continue;
+    }
+    if (result <= 0) {
+      return false;
+    }
+    offset += (size_t)result;
+  }
+  return true;
+}
+
 NOT_USED static void
 strupr(char *s)
 {
@@ -212,8 +230,7 @@ openwad(char *wadname)
     derror("Could not open wadfile");
   }
 
-  ssize_t r = read(wadfile, &header, sizeof(header));
-  if (r < (ssize_t)sizeof(header)) {
+  if (!read_data(wadfile, &header, sizeof(header))) {
     derror("Failed to read wadfile header");
   }
 
@@ -223,6 +240,12 @@ openwad(char *wadname)
 
   numlumps = LONG(header.numlumps);
   tableoffset = LONG(header.infotableofs);
+  struct stat fileinfo;
+  if (fstat(wadfile, &fileinfo) < 0 || numlumps < 0 || tableoffset < 0 ||
+      numlumps > INT_MAX / (int)sizeof(lumpinfo_t) ||
+      (uint64_t)tableoffset + (uint64_t)numlumps * sizeof(filelump_t) > (uint64_t)fileinfo.st_size) {
+    derror("Invalid WAD directory");
+  }
   tablelength = numlumps * sizeof(lumpinfo_t);
   tablefilelength = numlumps * sizeof(filelump_t);
   lumpinfo = (lumpinfo_t *)malloc(tablelength);
@@ -233,14 +256,16 @@ openwad(char *wadname)
   filetable = (filelump_t *)((char *)lumpinfo + tablelength - tablefilelength);
 
   /* Get the lumpinfo table */
-  lseek(wadfile, tableoffset, SEEK_SET);
-  r = read(wadfile, filetable, tablefilelength);
-  if (r < tablefilelength) {
+  if (lseek(wadfile, tableoffset, SEEK_SET) < 0 || !read_data(wadfile, filetable, tablefilelength)) {
     derror("Failed to read lumpinfo table");
   }
 
   /* Process the table to make the endianness right and shift it down */
   for (int i = 0; i < numlumps; i++) {
+    if (LONG(filetable[i].filepos) < 0 || LONG(filetable[i].size) < 0 ||
+        (uint64_t)LONG(filetable[i].filepos) + (uint64_t)LONG(filetable[i].size) > (uint64_t)fileinfo.st_size) {
+      derror("Invalid WAD lump");
+    }
     memcpy(lumpinfo[i].name, filetable[i].name, 8);
     lumpinfo[i].handle = wadfile;
     lumpinfo[i].filepos = LONG(filetable[i].filepos);
@@ -265,11 +290,14 @@ loadlump(char *lumpname, int *size)
     lump = 0;
     *size = 0;
   } else {
-    lump = (void *)malloc(lumpinfo[i].size);
-    lseek(lumpinfo[i].handle, lumpinfo[i].filepos, SEEK_SET);
-    ssize_t r = read(lumpinfo[i].handle, lump, lumpinfo[i].size);
+    lump = malloc(lumpinfo[i].size);
+    if (!lump || lseek(lumpinfo[i].handle, lumpinfo[i].filepos, SEEK_SET) < 0 ||
+        !read_data(lumpinfo[i].handle, lump, lumpinfo[i].size)) {
+      free(lump);
+      *size = 0;
+      return NULL;
+    }
     *size = lumpinfo[i].size;
-    (void)r;
   }
   // PRINT_MAGENTA("lumpname: %s size: %d", lumpname, *size);
 
@@ -278,130 +306,67 @@ loadlump(char *lumpname, int *size)
 
 /* Get SFX from WAD */
 void *
-getsfx(char *sfxname, int *len)
+getsfx(char *sfxname, int *len, unsigned int *rate)
 {
-  unsigned char *sfx;
-  unsigned char *paddedsfx;
-  int i = 0;
   int size = 0;
-  int paddedsize = 0;
   char name[20];
+  snprintf(name, sizeof(name), "ds%s", sfxname);
+  uint8_t *sfx = loadlump(name, &size);
+  *len = 0;
+  *rate = 0;
 
-  sprintf(name, "ds%s", sfxname);
+  if (!sfx || size < 8 || sfx[0] != 3 || sfx[1] != 0) {
+    free(sfx);
+    return NULL;
+  }
+  unsigned int sample_rate = sfx[2] | ((unsigned int)sfx[3] << 8);
+  uint32_t count = sfx[4] | ((uint32_t)sfx[5] << 8) | ((uint32_t)sfx[6] << 16) | ((uint32_t)sfx[7] << 24);
+  if (sample_rate == 0 || count == 0 || count > (uint32_t)(size - 8)) {
+    free(sfx);
+    return NULL;
+  }
 
-  sfx = (unsigned char *)loadlump(name, &size);
-
-  /* Pad the sound effect out to the mixing buffer size */
-  paddedsize = ((size - 8 + (SAMPLECOUNT - 1)) / SAMPLECOUNT) * SAMPLECOUNT;
-  paddedsfx = (unsigned char *)realloc(sfx, paddedsize + 8);
-  for (i = size; i < paddedsize + 8; i++)
-    paddedsfx[i] = 128;
-
-  *len = paddedsize;
-
-  // PRINT_BLUE("sfx name: %s length: %d", sfxname, *len);
-
-  return (void *)(paddedsfx + 8);
+  /* Keep the declared sample length independent of output buffer sizes */
+  memmove(sfx, sfx + 8, count);
+  *len = (int)count;
+  *rate = sample_rate;
+  return sfx;
 }
 
 /* Open WAD and populate SoundFX struct */
 void
-grabdata(void)
+grabdata(char *wadname)
 {
-  bool ret = false;
-  char *name = NULL;
-  char *doom1wad = NULL;
-  char *doomwad = NULL;
-  char *doomuwad = NULL;
-  char *doom2wad = NULL;
-  char *doom2fwad = NULL;
-  const char *doomwaddir = getenv("DOOMWADDIR");
-
-  /* Specify WAD dir */
-  if (!doomwaddir)
-#ifdef HOST
-    doomwaddir = "..";
-#else
-    doomwaddir = ".";
-#endif
-
-  size_t dir_len = strlen(doomwaddir);
-  /* 10 for the longest WAD name "doom2f.wad", 1 for the separator, and 1 for the NUL terminator */
-  size_t max_len = dir_len + 1 + 10 + 1;
-
-  doom1wad = malloc(max_len);
-  if (!doom1wad) {
-    perror("malloc: doom1wad");
-    goto exit;
-  }
-  snprintf(doom1wad, max_len, "%s/doom1.wad", doomwaddir);
-
-  doom2wad = malloc(max_len);
-  if (!doom2wad) {
-    perror("malloc: doom2wad");
-    goto exit;
-  }
-  snprintf(doom2wad, max_len, "%s/doom2.wad", doomwaddir);
-
-  doom2fwad = malloc(max_len);
-  if (!doom2fwad) {
-    perror("malloc: doom2fwad");
-    goto exit;
-  }
-  snprintf(doom2fwad, max_len, "%s/doom2f.wad", doomwaddir);
-
-  doomuwad = malloc(max_len);
-  if (!doomuwad) {
-    perror("malloc: doomuwad");
-    goto exit;
-  }
-  snprintf(doomuwad, max_len, "%s/doomu.wad", doomwaddir);
-
-  doomwad = malloc(max_len);
-  if (!doomwad) {
-    perror("malloc: doomwad");
-    goto exit;
-  }
-  snprintf(doomwad, max_len, "%s/doom.wad", doomwaddir);
-
-  if (!access(doom2fwad, R_OK))
-    name = doom2fwad;
-  else if (!access(doom2wad, R_OK))
-    name = doom2wad;
-  else if (!access(doomuwad, R_OK))
-    name = doomuwad;
-  else if (!access(doomwad, R_OK))
-    name = doomwad;
-  else if (!access(doom1wad, R_OK))
-    name = doom1wad;
-  else {
-    fprintf(stderr, "Could not find wadfile anywhere\n");
-    goto exit;
-  }
-  /* Read the WAD file */
-  openwad(name);
-  PRINT_BLUE("Loading from [%s]", name);
+  openwad(wadname);
 
   /* Get all SFX from WAD */
   for (int i = 1; i < NUMSFX; i++) {
     if (!S_sfx[i].link) {
-      S_sfx[i].data = getsfx(S_sfx[i].name, &lengths[i]);
+      S_sfx[i].data = getsfx(S_sfx[i].name, &lengths[i], &sample_rates[i]);
     } else {
+      size_t linked = S_sfx[i].link - S_sfx;
       S_sfx[i].data = S_sfx[i].link->data;
-      lengths[i] = lengths[(S_sfx[i].link - S_sfx) / sizeof(sfxinfo_t)];
+      lengths[i] = lengths[linked];
+      sample_rates[i] = sample_rates[linked];
     }
   }
-  ret = true;
+}
 
-exit:
-  /* Free allocated memory */
-  free(doom1wad);
-  free(doom2wad);
-  free(doom2fwad);
-  free(doomuwad);
-  free(doomwad);
-
-  if (!ret) {
-    exit(EXIT_FAILURE);
+void
+freedata(void)
+{
+  for (int i = 1; i < NUMSFX; i++) {
+    if (!S_sfx[i].link) {
+      free(S_sfx[i].data);
+    }
+    S_sfx[i].data = NULL;
+    lengths[i] = 0;
+    sample_rates[i] = 0;
   }
+  if (numlumps > 0 && lumpinfo) {
+    close(lumpinfo[0].handle);
+  }
+  free(lumpinfo);
+  lumpinfo = NULL;
+  numlumps = 0;
 }

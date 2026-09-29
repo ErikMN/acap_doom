@@ -6,607 +6,300 @@
  *
  */
 #include "sndserv.h"
+#include "mixer.h"
 
-#define DEFAULT_RATE 11025
-#define DEFAULT_CHANNELS 2
-#define NBR_OF_CHANNELS 8
+#include <stdatomic.h>
+#include <sys/socket.h>
 
-/* pw-top: QUANT/RATE */
-#ifdef HOST
-#define BUFFER_LATENCY "256/11025"
-#else
-#define BUFFER_LATENCY "512/11025"
-#endif
+#define COMMAND_CAPACITY 256
 
 struct data {
-  struct pw_thread_loop *loop;
+  struct pw_main_loop *loop;
   struct pw_stream *stream;
-  struct pw_context *context;
-  struct pw_core *core;
-  struct spa_hook stream_listener;
+  struct spa_source *control_source;
+  struct spa_source *notify_source;
+  struct sound_message commands[COMMAND_CAPACITY];
+  atomic_uint command_read;
+  atomic_uint command_write;
+  atomic_uint finished[SOUND_CHANNELS];
+  uint32_t reported[SOUND_CHANNELS];
+  bool status_pending;
+  bool failed;
 };
 
-struct ThreadArgs {
-  int argc;
-  char **argv;
-  char commandbuf[256];
-  struct data data;
-};
-
-struct data data = { 0 };
-
-static int start_stream(struct data *data);
-static void stop_stream(struct data *data);
-static void mix_audio(void);
-
-/******************************************************************************/
-/* GLOBAL VARIABLES */
-
-/* sndserver running flag */
-bool is_running = true;
-
-/* Global clip id */
-static int g_fx_id = 0;
-
-/* Channel id */
-static int slot = 0;
-
-/* the channel data pointers */
-static uint8_t *channels[NBR_OF_CHANNELS];
-
-/* the channel step amount */
-static unsigned int channelstep[NBR_OF_CHANNELS];
-
-/* 0.16 bit remainder of last step */
-static unsigned int channelstepremainder[NBR_OF_CHANNELS];
-
-/* the channel data end pointers */
-static uint8_t *channelsend[NBR_OF_CHANNELS];
-
-/* time that the channel started playing */
-static long channelstart[NBR_OF_CHANNELS];
-
-/* the channel left volume lookup */
-static int *channelleftvol_lookup[NBR_OF_CHANNELS];
-
-/* the channel right volume lookup */
-static int *channelrightvol_lookup[NBR_OF_CHANNELS];
-
-/* sfx id of the playing sound effect */
-static int channelids[NBR_OF_CHANNELS];
-
-/* A table of steps (sound speeds) */
-static int steptable[256];
-
-/* A table of volumes to use */
-static int vol_lookup[128 * 256];
-
-/* Mixing buffer (the one sent to OSS in the original code) */
-static int16_t mixbuffer[MIXBUFFERSIZE];
-
-/******************************************************************************/
-/* SOUNDSERVER FUNCTIONS */
-
-/* DEBUG: Dump raw sound clip to file */
-NOT_USED static void
-dump_channel_to_file(const char *filename)
+static bool
+queue_full(struct data *data)
 {
-  FILE *file = fopen(filename, "wb");
-  if (file) {
-    fwrite(channels[slot], sizeof(uint8_t), lengths[g_fx_id], file);
-    fclose(file);
-    PRINT_BLUE("*** Dumped channel of sound %d to %s length: %d", g_fx_id, filename, lengths[g_fx_id]);
-  } else {
-    perror("Failed to open file for writing");
-  }
+  unsigned int written = atomic_load_explicit(&data->command_write, memory_order_relaxed);
+  unsigned int read = atomic_load_explicit(&data->command_read, memory_order_acquire);
+  return written - read == COMMAND_CAPACITY;
 }
 
-/* Mix audio to the mixbuffer */
 static void
-mix_audio(void)
+update_control_events(struct data *data)
 {
-  // PRINT_YELLOW("MIX AUDIO");
-  /* On most platforms, a short integer is 16 bits */
-  uint8_t sample;    /* Current sample value */
-  int16_t *leftout;  /* Left ch output buffer */
-  int16_t *rightout; /* Right ch output buffer */
-  int16_t *leftend;  /* Pointer to the end of the left ch output buffer*/
-  int step;          /* Step through the buffer */
+  uint32_t events = SPA_IO_ERR | SPA_IO_HUP;
+  if (!queue_full(data)) {
+    events |= SPA_IO_IN;
+  }
+  if (data->status_pending) {
+    events |= SPA_IO_OUT;
+  }
+  pw_loop_update_io(pw_main_loop_get_loop(data->loop), data->control_source, events);
+}
 
-  leftout = mixbuffer;
-  rightout = mixbuffer + 1;
-  step = 2; /* each ch samples are 2 positions apart in the buffer */
-
-  leftend = mixbuffer + SAMPLECOUNT * step;
-
-  /* Mix into the mixing buffer */
-  while (leftout != leftend) {
-    int dl = 0;
-    int dr = 0;
-
-    /* For each channel */
-    for (int i = 0; i < NBR_OF_CHANNELS; i++) {
-      if (channels[i]) {
-        sample = *channels[i];
-
-        dl += channelleftvol_lookup[i][sample];
-        dr += channelrightvol_lookup[i][sample];
-
-        channelstepremainder[i] += channelstep[i];
-        channels[i] += channelstepremainder[i] >> 16;
-        channelstepremainder[i] &= UINT16_MAX;
-
-        if (channels[i] >= channelsend[i]) {
-          channels[i] = NULL;
-        }
-      }
+static void
+report_finished(struct data *data)
+{
+  data->status_pending = false;
+  for (unsigned int slot = 0; slot < SOUND_CHANNELS; slot++) {
+    uint32_t handle = atomic_load_explicit(&data->finished[slot], memory_order_acquire);
+    if (handle == 0 || handle == data->reported[slot]) {
+      continue;
     }
-
-    if (dl > INT16_MAX)
-      *leftout = INT16_MAX;
-    else if (dl < INT16_MIN)
-      *leftout = INT16_MIN;
-    else
-      *leftout = dl;
-
-    if (dr > INT16_MAX)
-      *rightout = INT16_MAX;
-    else if (dr < INT16_MIN)
-      *rightout = INT16_MIN;
-    else
-      *rightout = dr;
-
-    leftout += step;
-    rightout += step;
+    struct sound_message message = {
+      .version = SOUND_PROTOCOL_VERSION,
+      .type = SOUND_FINISHED,
+      .slot = slot,
+      .handle = handle,
+    };
+    ssize_t result;
+    do {
+      result = send(STDIN_FILENO, &message, sizeof(message), MSG_DONTWAIT | MSG_NOSIGNAL);
+    } while (result < 0 && errno == EINTR);
+    if (result < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+      data->status_pending = true;
+      break;
+    }
+    if (result != sizeof(message)) {
+      pw_main_loop_quit(data->loop);
+      return;
+    }
+    data->reported[slot] = handle;
   }
+  update_control_events(data);
 }
 
-void
-I_SubmitOutputBuffer(void *samples, int samplecount)
-{
-  (void)samples;
-  (void)samplecount;
-  PRINT_CYAN("DO SOUND: samples: %p samplecount: %d", samples, samplecount);
-}
-
-static long
-get_current_time_in_microseconds(void)
-{
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return tv.tv_sec * 1000000 + tv.tv_usec;
-}
-
-/* Add a sound to the buffer */
 static void
-addsfx(int sfxid, int volume, int step, int separation)
+on_notify(void *userdata, uint64_t count)
 {
-  PRINT_YELLOW("[sfxid: %d] [volume: %d] [step: %d] [separation: %d]", sfxid, volume, step, separation);
+  (void)count;
+  report_finished(userdata);
+}
 
-  /* FIXME: Sanity check values */
-  if (sfxid < 0 || sfxid > NUMSFX) {
-    PRINT_RED("Error: invalid sfx ID");
+static void
+on_control(void *userdata, int fd, uint32_t mask)
+{
+  struct data *data = userdata;
+  if (mask & (SPA_IO_HUP | SPA_IO_ERR)) {
+    pw_main_loop_quit(data->loop);
     return;
   }
-  if (separation < 1 || separation > 256) {
-    separation = 0;
+  if (mask & SPA_IO_OUT) {
+    report_finished(data);
   }
-  if (volume < 0 || volume > 0xff) {
-    PRINT_RED("Volume out of bounds!");
-    volume = 8;
-  }
-  // if (step < 16384 || step > 46083) {
-  //   PRINT_RED("Step out of bounds!");
-  //   step = 66000;
-  // }
-
-  int i;
-  long mytime = get_current_time_in_microseconds();
-  long oldest = mytime;
-  int oldestnum = 0;
-  int rightvol = 0;
-  int leftvol = 0;
-
-  PRINT_GREEN("mytime: %ld", mytime);
-
-  /* Play these sound effects only one at a time */
-  if (sfxid == sfx_sawup || sfxid == sfx_sawidl || sfxid == sfx_sawful || sfxid == sfx_sawhit || sfxid == sfx_stnmov ||
-      sfxid == sfx_pistol) {
-    PRINT_YELLOW("Only play this sound once!");
-    for (i = 0; i < NBR_OF_CHANNELS; i++) {
-      if (channels[i] && channelids[i] == sfxid) {
-        channels[i] = NULL;
-        break;
+  while ((mask & SPA_IO_IN) && !queue_full(data)) {
+    struct sound_message message;
+    ssize_t length = recv(fd, &message, sizeof(message), MSG_DONTWAIT | MSG_TRUNC);
+    if (length < 0 && errno == EINTR) {
+      continue;
+    }
+    if (length < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+      break;
+    }
+    if (length != sizeof(message) || !mixer_valid_command(&message)) {
+      if (length != 0) {
+        fprintf(stderr, "Invalid sound command or connection failure\n");
+        data->failed = true;
       }
+      pw_main_loop_quit(data->loop);
+      return;
     }
+    unsigned int written = atomic_load_explicit(&data->command_write, memory_order_relaxed);
+    data->commands[written % COMMAND_CAPACITY] = message;
+    atomic_store_explicit(&data->command_write, written + 1, memory_order_release);
   }
-
-  for (i = 0; i < NBR_OF_CHANNELS && channels[i]; i++) {
-    if (channelstart[i] < oldest) {
-      oldestnum = i;
-      oldest = channelstart[i];
-    }
-  }
-
-  if (i == NBR_OF_CHANNELS) {
-    slot = oldestnum;
-  } else {
-    slot = i;
-  }
-
-  PRINT_YELLOW("CHANNEL SLOT: %d", slot);
-
-  /* Add sound data to a channel */
-  channels[slot] = (uint8_t *)S_sfx[sfxid].data;
-  channelsend[slot] = channels[slot] + lengths[sfxid];
-
-  // dump_channel_to_file("channel.raw");
-
-  channelstep[slot] = step;
-  channelstepremainder[slot] = 0;
-  channelstart[slot] = mytime;
-
-  /* (range: 1 - 256) */
-  separation += 1;
-
-  /* (x^2 separation) */
-  leftvol = volume - (volume * separation * separation) / (256 * 256);
-
-  separation = separation - 257;
-
-  /* (x^2 separation) */
-  rightvol = volume - (volume * separation * separation) / (256 * 256);
-
-  /* sanity check */
-  if (rightvol < 0 || rightvol > 127) {
-    PRINT_RED("rightvol out of bounds");
-    rightvol = 50;
-  }
-
-  if (leftvol < 0 || leftvol > 127) {
-    PRINT_RED("leftvol out of bounds");
-    leftvol = 50;
-  }
-
-  /* Get the proper lookup table piece for this volume level */
-  channelleftvol_lookup[slot] = &vol_lookup[leftvol * 256];
-  channelrightvol_lookup[slot] = &vol_lookup[rightvol * 256];
-  channelids[slot] = sfxid;
+  update_control_events(data);
 }
-
-/* Initialize sound server internal data */
-static void
-initdata(void)
-{
-  /* Init all channel pointers to 0 */
-  memset(channels, 0, sizeof(channels));
-
-  /* Init the steptable */
-  int *steptablemid = steptable + 128;
-  for (int i = -128; i < 128; i++) {
-    steptablemid[i] = pow(2.0, i / 64.0) * 65536.0;
-  }
-  /* Init the vol_lookup */
-  for (int i = 0; i < 128; i++) {
-    for (int j = 0; j < 256; j++) {
-      vol_lookup[i * 256 + j] = (i * (j - 128) * 256) / 127;
-    }
-  }
-}
-
-/* Sound server thread loop */
-static void *
-sndserver(void *arg)
-{
-  struct ThreadArgs *threadArgs = (struct ThreadArgs *)arg;
-  int epoll_fd = epoll_create1(0);
-  if (epoll_fd == -1) {
-    perror("epoll_create1");
-    return NULL;
-  }
-  struct epoll_event ev, events[1];
-  ev.events = EPOLLIN;
-  ev.data.fd = 0;
-  if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, 0, &ev) == -1) {
-    perror("epoll_ctl");
-    close(epoll_fd);
-    return NULL;
-  }
-
-  /* Get sound data from WAD */
-  grabdata();
-
-  /* Init any data */
-  initdata();
-
-  while (is_running) {
-    char *commandbuf = threadArgs->commandbuf;
-    int rc = epoll_wait(epoll_fd, events, 1, -1);
-    if (rc < 0) {
-      perror("epoll_wait");
-      is_running = false;
-      pw_thread_loop_signal(threadArgs->data.loop, false);
-    }
-    if (events[0].events & EPOLLIN) {
-      ssize_t r = read(0, commandbuf, 1);
-      if (r <= 0) {
-        is_running = false;
-        pw_thread_loop_signal(threadArgs->data.loop, false);
-      } else {
-        char cmd = commandbuf[0];
-        if (cmd != '\n') {
-          PRINT_BLUE("CMD: %c", cmd);
-        }
-        switch (cmd) {
-        case 'p':
-          /* Parse play command */
-          r = read(0, commandbuf, 9);
-          if (r <= 0) {
-            is_running = false;
-            pw_thread_loop_signal(threadArgs->data.loop, false);
-          }
-          for (int i = 0; i < 8; i++) {
-            char offset = commandbuf[i] >= 'a' ? 'a' - 10 : '0';
-            commandbuf[i] -= offset;
-          }
-          int sndnum = (commandbuf[0] << 4) + commandbuf[1];
-          int step_index = (commandbuf[2] << 4) + commandbuf[3];
-          int step = steptable[step_index];
-          int volume = (commandbuf[4] << 4) + commandbuf[5];
-          int separation = (commandbuf[6] << 4) + commandbuf[7];
-
-          PRINT_CYAN("p %x %x %x %x", sndnum, step_index, volume, separation);
-          PRINT_CYAN(
-              "[sndnum: %d] [volume: %d] [step_index: %d]  [separation: %d]", sndnum, volume, step_index, separation);
-          PRINT_CYAN("[sndnum: %#x] [volume: %#x] [step_index: %#x]  [separation: %#x]",
-                     sndnum,
-                     volume,
-                     step_index,
-                     separation);
-
-          g_fx_id = sndnum;
-          addsfx(sndnum, volume, step, separation);
-          break;
-
-        /* Quit app */
-        case 'q':
-          is_running = false;
-          pw_thread_loop_signal(threadArgs->data.loop, false);
-          break;
-
-        case '\n':
-          break;
-
-        default:
-          PRINT_RED("Invalid cmd: %c", commandbuf[0]);
-          break;
-        }
-      }
-    }
-  }
-  close(epoll_fd);
-
-  return NULL;
-}
-
-/******************************************************************************/
-/* PIPEWIRE */
 
 /* Process audio buffer */
 static void
 on_process(void *userdata)
 {
-  /* Mix audio */
-  mix_audio();
-
   struct data *data = userdata;
-  struct pw_buffer *pw_buffer = NULL;
-  struct spa_buffer *buf = NULL;
-  struct spa_data *spa_data = NULL;
-  struct spa_chunk *chunk = NULL;
-  int n_frames = 0;
-  int stride = 0;
-  int16_t *p;
+  unsigned int read = atomic_load_explicit(&data->command_read, memory_order_relaxed);
+  unsigned int written = atomic_load_explicit(&data->command_write, memory_order_acquire);
+  bool notify = read != written;
 
-  if ((pw_buffer = pw_stream_dequeue_buffer(data->stream)) == NULL) {
-    PRINT_RED("out of buffers");
-    return;
+  /* Apply a bounded batch of commands on the same thread that mixes audio */
+  while (read != written) {
+    mixer_command(&data->commands[read % COMMAND_CAPACITY]);
+    read++;
+  }
+  atomic_store_explicit(&data->command_read, read, memory_order_release);
+
+  struct pw_buffer *buffer = pw_stream_dequeue_buffer(data->stream);
+  if (buffer) {
+    struct spa_buffer *spa_buffer = buffer->buffer;
+    buffer->size = 0;
+    if (spa_buffer->n_datas > 0) {
+      struct spa_data *plane = &spa_buffer->datas[0];
+      if (plane->chunk) {
+        plane->chunk->offset = 0;
+        plane->chunk->stride = sizeof(int16_t) * 2;
+        plane->chunk->size = 0;
+        if (plane->data) {
+          uint32_t frames = plane->maxsize / plane->chunk->stride;
+          if (buffer->requested && buffer->requested < frames) {
+            frames = (uint32_t)buffer->requested;
+          }
+          mixer_render(plane->data, frames);
+          plane->chunk->size = frames * plane->chunk->stride;
+          buffer->size = frames;
+        }
+      }
+    }
+    pw_stream_queue_buffer(data->stream, buffer);
   }
 
-  buf = pw_buffer->buffer;
-  spa_data = buf->datas;
-  chunk = spa_data->chunk;
-  buf = pw_buffer->buffer;
-  if ((p = spa_data[0].data) == NULL) {
-    return;
+  for (unsigned int slot = 0; slot < SOUND_CHANNELS; slot++) {
+    uint32_t handle = mixer_finished(slot);
+    if (handle && handle != atomic_load_explicit(&data->finished[slot], memory_order_relaxed)) {
+      atomic_store_explicit(&data->finished[slot], handle, memory_order_release);
+      notify = true;
+    }
   }
+  if (notify) {
+    pw_loop_signal_event(pw_main_loop_get_loop(data->loop), data->notify_source);
+  }
+}
 
-  /* length of clip */
-  int length = MIXBUFFERSIZE;
-  stride = sizeof(int16_t) * DEFAULT_CHANNELS;
-
-  n_frames = buf->datas[0].maxsize / stride;
-  if (pw_buffer->requested)
-    n_frames = SPA_MIN(pw_buffer->requested, n_frames);
-
-  // syslog(LOG_INFO, "length: %d n_frames %d stride: %d slot: %d", length, n_frames, stride, slot);
-
-  memcpy(p, mixbuffer, length);
-
-  chunk->offset = 0;
-  chunk->stride = stride;
-  chunk->size = n_frames * stride;
-
-  pw_stream_queue_buffer(data->stream, pw_buffer);
+static void
+on_state_changed(void *userdata, enum pw_stream_state old, enum pw_stream_state state, const char *error)
+{
+  (void)old;
+  struct data *data = userdata;
+  if (state == PW_STREAM_STATE_ERROR) {
+    fprintf(stderr, "Sound stream failed: %s\n", error ? error : "unknown error");
+    data->failed = true;
+    pw_main_loop_quit(data->loop);
+  }
 }
 
 static const struct pw_stream_events stream_events = {
   PW_VERSION_STREAM_EVENTS,
+  .state_changed = on_state_changed,
   .process = on_process,
 };
 
 static void
 do_quit(void *userdata, int signal_number)
 {
-  PRINT_BLUE("QUIT!");
   (void)signal_number;
   struct data *data = userdata;
-  /* Stop the PW loop */
-  pw_thread_loop_lock(data->loop);
-  stop_stream(data);
-  pw_thread_loop_signal(data->loop, false);
-  pw_thread_loop_unlock(data->loop);
+  pw_main_loop_quit(data->loop);
 }
-
-static void
-stop_stream(struct data *data)
-{
-  PRINT_BLUE(">>> Stop stream!");
-  if (data->stream == NULL) {
-    PRINT_RED("Stream is already stopped!");
-    return;
-  }
-  /* Stop the stream */
-  pw_stream_destroy(data->stream);
-  data->stream = NULL;
-}
-
-static int
-start_stream(struct data *data)
-{
-  PRINT_BLUE(">>> Start stream!");
-  if (data->stream != NULL) {
-    PRINT_RED("Stream is already running!");
-    return 0;
-  }
-
-  uint8_t buffer[1024];
-  const struct spa_pod *params[1];
-  struct pw_properties *props;
-  struct spa_pod_builder pod_builder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
-
-  int ret = 0;
-
-  /* Set the target node */
-  props = pw_properties_new(PW_KEY_MEDIA_TYPE,
-                            "Audio",
-                            PW_KEY_MEDIA_CATEGORY,
-                            "Playback",
-                            PW_KEY_TARGET_OBJECT,
-                            "AudioDevice0Output0",
-                            PW_KEY_NODE_LATENCY,
-                            BUFFER_LATENCY,
-                            NULL);
-
-  /* Create a new stream */
-  data->stream = pw_stream_new(data->core, "DOOM sound server", props);
-
-  struct spa_audio_info_raw raw =
-      SPA_AUDIO_INFO_RAW_INIT(.format = SPA_AUDIO_FORMAT_S16_LE, .channels = DEFAULT_CHANNELS, .rate = DEFAULT_RATE);
-  params[0] = spa_format_audio_raw_build(&pod_builder, SPA_PARAM_EnumFormat, &raw);
-
-  pw_stream_add_listener(data->stream, &data->stream_listener, &stream_events, data);
-
-  /* Connect the stream */
-  ret = pw_stream_connect(data->stream,
-                          PW_DIRECTION_OUTPUT,
-                          PW_ID_ANY, /* link to any node */
-                          PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS,
-                          params,
-                          SPA_N_ELEMENTS(params));
-  if (ret < 0) {
-    printf("Error connecting to stream\n");
-  }
-
-  return ret;
-}
-
-/******************************************************************************/
-/* MAIN */
 
 int
 main(int argc, char *argv[])
 {
-  printf("*** Starting Linux Doom Sound Server [version: %s]\n", SNDSERV_VERSION);
-  PRINT_BLUE("Build: %s %s\n", __DATE__, __TIME__);
-  bool ret = false;
+  struct data data = { 0 };
+  int result = EXIT_FAILURE;
+  int socket_type;
+  socklen_t socket_type_size = sizeof(socket_type);
+  if (argc != 2 || getsockopt(STDIN_FILENO, SOL_SOCKET, SO_TYPE, &socket_type, &socket_type_size) < 0 ||
+      socket_type != SOCK_SEQPACKET) {
+    fprintf(stderr, "Start sndserver through DOOM with a WAD path and a sound control socket\n");
+    return EXIT_FAILURE;
+  }
+
+  /* Load samples and initialize the mixer before starting audio callbacks */
+  grabdata(argv[1]);
+  mixer_init();
+  atomic_init(&data.command_read, 0);
+  atomic_init(&data.command_write, 0);
+  for (unsigned int slot = 0; slot < SOUND_CHANNELS; slot++) {
+    atomic_init(&data.finished[slot], 0);
+  }
+  if (!atomic_is_lock_free(&data.command_read) || !atomic_is_lock_free(&data.finished[0])) {
+    fprintf(stderr, "Sound processing requires lock-free integer atomics\n");
+    freedata();
+    return EXIT_FAILURE;
+  }
 
   /* Initialize PipeWire */
-  pw_init(&argc, &argv);
-
-  /* Print headers and library version */
-  print_debug("Compiled with libpipewire %s headers\n"
-              "Linked with libpipewire %s library\n\n",
-              pw_get_headers_version(),
-              pw_get_library_version());
-
-  /* Create a new PW thread loop */
-  data.loop = pw_thread_loop_new("Doom sndserv PW thread", NULL);
+  pw_init(NULL, NULL);
+  data.loop = pw_main_loop_new(NULL);
   if (!data.loop) {
-    PRINT_RED("Could not create the main loop");
-    ret = false;
+    goto exit;
+  }
+  struct pw_loop *loop = pw_main_loop_get_loop(data.loop);
+  if (!pw_loop_add_signal(loop, SIGINT, do_quit, &data) || !pw_loop_add_signal(loop, SIGTERM, do_quit, &data)) {
+    goto exit;
+  }
+  data.notify_source = pw_loop_add_event(loop, on_notify, &data);
+  data.control_source =
+      pw_loop_add_io(loop, STDIN_FILENO, SPA_IO_IN | SPA_IO_HUP | SPA_IO_ERR, false, on_control, &data);
+  if (!data.notify_source || !data.control_source) {
     goto exit;
   }
 
-  /* Lock the loop */
-  pw_thread_loop_lock(data.loop);
-
-  /* Setup signals */
-  pw_loop_add_signal(pw_thread_loop_get_loop(data.loop), SIGINT, do_quit, &data);
-  pw_loop_add_signal(pw_thread_loop_get_loop(data.loop), SIGTERM, do_quit, &data);
-
-  /* Create the context */
-  data.context = pw_context_new(pw_thread_loop_get_loop(data.loop), NULL, 0);
-  /* Connect to a PipeWire instance */
-  data.core = pw_context_connect(data.context, NULL, 0);
-  if (data.core == NULL) {
-    fprintf(stderr, "can't connect: %m\n");
+  const char *target = getenv("DOOM_AUDIO_TARGET");
+  if (!target) {
+    target = "AudioDevice0Output0";
+  }
+  struct pw_properties *props = pw_properties_new(PW_KEY_MEDIA_TYPE,
+                                                  "Audio",
+                                                  PW_KEY_MEDIA_CATEGORY,
+                                                  "Playback",
+                                                  PW_KEY_MEDIA_ROLE,
+                                                  "Game",
+                                                  PW_KEY_TARGET_OBJECT,
+                                                  target,
+                                                  NULL);
+  if (!props) {
+    goto exit;
+  }
+  data.stream = pw_stream_new_simple(loop, "DOOM sound server", props, &stream_events, &data);
+  if (!data.stream) {
     goto exit;
   }
 
-  /* Start the stream */
-  start_stream(&data);
-
-  /* sndserver input args */
-  struct ThreadArgs threadArgs;
-  threadArgs.argc = argc;
-  threadArgs.argv = argv;
-  threadArgs.data = data;
-
-  /* Start the sndserver thread */
-  pthread_t sndserv_thread;
-  if (pthread_create(&sndserv_thread, NULL, sndserver, (void *)&threadArgs) != 0) {
-    perror("pthread_create");
+  uint8_t buffer[1024];
+  struct spa_pod_builder builder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+  const struct spa_pod *params[1];
+  struct spa_audio_info_raw raw = SPA_AUDIO_INFO_RAW_INIT(.format = SPA_AUDIO_FORMAT_S16_LE,
+                                                          .channels = 2,
+                                                          .rate = SOUND_RATE,
+                                                          .position = { SPA_AUDIO_CHANNEL_FL, SPA_AUDIO_CHANNEL_FR });
+  params[0] = spa_format_audio_raw_build(&builder, SPA_PARAM_EnumFormat, &raw);
+  if (pw_stream_connect(data.stream,
+                        PW_DIRECTION_OUTPUT,
+                        PW_ID_ANY,
+                        PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS,
+                        params,
+                        SPA_N_ELEMENTS(params)) < 0) {
     goto exit;
   }
-
-  /* Start the PW loop: the app stops here */
-  pw_thread_loop_start(data.loop);
-  pw_thread_loop_wait(data.loop);
-
-  /* Unlock loop before stop */
-  pw_thread_loop_unlock(data.loop);
-  pw_thread_loop_stop(data.loop);
-
-  /* Stop the sndserver thread loop */
-  is_running = false;
-
-  /* FIXME: Join the sndserver thread */
-  // if (pthread_join(sndserv_thread, NULL) != 0) {
-  //   perror("pthread_join");
-  //   goto exit;
-  // }
-
-  ret = true;
+  if (pw_main_loop_run(data.loop) >= 0 && !data.failed) {
+    result = EXIT_SUCCESS;
+  }
 
 exit:
-  /* Clean up PW */
-  if (data.loop != NULL) {
-    PRINT_YELLOW("Destroy the loop");
-    pw_thread_loop_destroy(data.loop);
+  /* Stop callbacks before releasing their queues and sample data */
+  if (data.stream) {
+    pw_stream_destroy(data.stream);
+  }
+  if (data.loop) {
+    if (data.control_source) {
+      pw_loop_destroy_source(pw_main_loop_get_loop(data.loop), data.control_source);
+    }
+    if (data.notify_source) {
+      pw_loop_destroy_source(pw_main_loop_get_loop(data.loop), data.notify_source);
+    }
+    pw_main_loop_destroy(data.loop);
   }
   pw_deinit();
-  PRINT_BLUE("*** EXIT APP: BYE");
-
-  return ret ? EXIT_SUCCESS : EXIT_FAILURE;
+  freedata();
+  return result;
 }

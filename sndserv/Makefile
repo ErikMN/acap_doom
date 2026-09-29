@@ -5,7 +5,6 @@ ifdef OECORE_SDK_VERSION
 LDLIBS += -L/usr/lib/
 else
 CC = gcc
-CFLAGS += -DHOST
 endif
 
 PKGS += libpipewire-0.3 libspa-0.2
@@ -18,7 +17,7 @@ SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 
 # Enable all warnings:
-CFLAGS += -Wall
+CFLAGS += -Wall -std=gnu11
 
 # TODO: Extra warnings:
 # CFLAGS += -Werror

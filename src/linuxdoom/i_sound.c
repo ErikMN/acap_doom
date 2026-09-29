@@ -59,7 +59,8 @@
 // UNIX hack, to be removed.
 #ifdef SNDSERV
 // Separate sound server process.
-FILE *sndserver = 0;
+#include "../sound_client.h"
+extern char *wadfiles[];
 char *sndserver_filename = "sndserver";
 char *sndserver_filepath = "/usr/local/packages/acap_doom/sndserver";
 #elif SNDINTR
@@ -432,12 +433,7 @@ I_StartSound(int id, int vol, int sep, int pitch, int priority)
   priority = 0;
 
 #ifdef SNDSERV
-  if (sndserver) {
-    fprintf(sndserver, "p%2.2x%2.2x%2.2x%2.2x\n", id, pitch, vol, sep);
-    fflush(sndserver);
-  }
-  // warning: control reaches end of non-void function.
-  return id;
+  return sound_client_start(id, vol, sep, pitch);
 #else
   // Debug.
   // fprintf( stderr, "starting sound %d", id );
@@ -454,6 +450,9 @@ I_StartSound(int id, int vol, int sep, int pitch, int priority)
 void
 I_StopSound(int handle)
 {
+#ifdef SNDSERV
+  sound_client_stop(handle);
+#else
   // You need the handle returned by StartSound.
   // Would be looping all channels,
   //  tracking down the handle,
@@ -462,13 +461,18 @@ I_StopSound(int handle)
   // UNUSED.
   (void)handle;
   handle = 0;
+#endif
 }
 
 int
 I_SoundIsPlaying(int handle)
 {
+#ifdef SNDSERV
+  return sound_client_playing(handle);
+#else
   // Ouch.
   return gametic < handle;
+#endif
 }
 
 //
@@ -617,6 +621,9 @@ I_SubmitSound(void)
 void
 I_UpdateSoundParams(int handle, int vol, int sep, int pitch)
 {
+#ifdef SNDSERV
+  sound_client_update(handle, vol, sep, pitch);
+#else
   // I fail too see that this is used.
   // Would be using the handle to identify
   //  on which channel the sound might be active,
@@ -625,17 +632,14 @@ I_UpdateSoundParams(int handle, int vol, int sep, int pitch)
   // UNUSED.
   (void)handle;
   handle = vol = sep = pitch = 0;
+#endif
 }
 
 void
 I_ShutdownSound(void)
 {
 #ifdef SNDSERV
-  if (sndserver) {
-    // Send a "quit" command.
-    fprintf(sndserver, "q\n");
-    fflush(sndserver);
-  }
+  sound_client_shutdown();
 #else
   // Wait till all pending sounds are finished.
   int done = 0;
@@ -672,16 +676,14 @@ I_InitSound()
   char buffer[256];
 
   if (getenv("DOOMWADDIR"))
-    sprintf(buffer, "%s/%s", getenv("DOOMWADDIR"), sndserver_filename);
+    snprintf(buffer, sizeof(buffer), "%s/%s", getenv("DOOMWADDIR"), sndserver_filename);
   else
-    sprintf(buffer, "%s", sndserver_filepath);
+    snprintf(buffer, sizeof(buffer), "%s", sndserver_filepath);
 
   // start sound process
-  if (!access(buffer, X_OK)) {
-    strcat(buffer, " -quiet");
-    sndserver = popen(buffer, "w");
-  } else
+  if (!sound_client_init(buffer, wadfiles[0])) {
     fprintf(stderr, "Could not start sound server [%s]\n", buffer);
+  }
 #else
 
   int i;
