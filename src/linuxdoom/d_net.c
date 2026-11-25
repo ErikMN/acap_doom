@@ -22,6 +22,7 @@
 //
 //-----------------------------------------------------------------------------
 
+#include <unistd.h>
 #include "m_menu.h"
 #include "i_system.h"
 #include "i_video.h"
@@ -657,6 +658,8 @@ TryRunTics(void)
 
   // wait for new tics if needed
   while (lowtic < gametic / ticdup + counts) {
+    /* Sleep briefly instead of busy-waiting for the next tic (1/35 s) */
+    usleep(1000);
     NetUpdate();
     lowtic = MAXINT;
 
